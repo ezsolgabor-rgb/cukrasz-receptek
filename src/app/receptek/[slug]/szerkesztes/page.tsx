@@ -60,7 +60,7 @@ export default async function EditRecipePage({
       note: step.note,
       photoFileName: step.photoFileName || null,
     })),
-    componentRecipeId: recipe.componentRecipeId || null,
+    componentRecipeId: null,
     componentChoices: [],
   };
 
@@ -84,6 +84,7 @@ export default async function EditRecipePage({
             units={options.units}
             categories={options.categories}
             groupSuggestions={options.groupSuggestions}
+            componentChoices={[]}
           />
         </div>
       </main>
