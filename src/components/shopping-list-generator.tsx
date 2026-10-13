@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import type { Recipe } from "@/lib/recipe-types";
-import { Checkbox } from "./ui/checkbox";
-import { type Recipe } from "@/lib/recipe-types";
 
 type ShoppingListItem = {
   id: string;
@@ -28,7 +26,11 @@ type ShoppingListItem = {
 
 export function ShoppingListGenerator({ recipes }: { recipes: Recipe[] }) {
   const [store, setStore] = useState<"lidl" | "aldi" | "mixed">("lidl");
-  const storeData = store === "mixed" ? undefined : item.stores[store];
+  const [storeData, setStoreData] = useState<{
+    productName: string;
+    packageSize: string;
+    approxPrice: number;
+  }>();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
 
   useEffect(() => {
