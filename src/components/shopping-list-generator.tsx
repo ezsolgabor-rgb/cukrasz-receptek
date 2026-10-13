@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@components/ui/button";
-import { Checkbox } from "@components/ui/checkbox";
-import type { Recipe } from "@lib/recipe-types";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import type { Recipe } from "@/lib/recipe-types";
 
 type ShoppingListItem = {
   id: string;

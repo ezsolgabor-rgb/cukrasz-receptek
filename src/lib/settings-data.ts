@@ -66,10 +66,14 @@ export async function loadAkcioFigyeloData(): Promise<RowData[]> {
   const list = await prisma.akcioFigyelo.findMany({
     orderBy: { store: 'asc' },
   });
-  return list.map((akcio) => {
-    const keywords = Array.isArray(akcio.keywords) 
-      ? akcio.keywords.join(', ')
-      : '';
+  return list.map((akcio: {
+    id: string;
+    name: string;
+    store: string;
+    keywords: string[];
+    isActive: boolean;
+  }) => {
+    const keywords = akcio.keywords.join(', ');
       
     return {
       id: akcio.id,
