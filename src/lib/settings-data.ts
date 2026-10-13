@@ -65,13 +65,7 @@ export async function loadIngredientRows(): Promise<RowData[]> {
 export async function loadAkcioFigyeloData(): Promise<RowData[]> {
   const list = await prisma.akcioFigyelo.findMany({
     orderBy: { store: 'asc' },
-  }) as unknown as Array<{
-    id: string;
-    name: string;
-    store: string;
-    keywords: string[];
-    isActive: boolean;
-  }>;
+  });
   return list.map((akcio) => ({
     id: akcio.id,
     values: {
