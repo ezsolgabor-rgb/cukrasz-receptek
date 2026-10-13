@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Klau recepttár – design tokenek
+   Zsályazöld alap, mély erdőzöld akcentus, komoly serif címsorok.
+   A tokenek Tailwind utility-ként használhatók:
+   bg-sage-100, text-ink-900, bg-forest-600, text-plum-500 …
+--------------------------------------------------------------------------- */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-garamond), Georgia, "Times New Roman", serif;
+
+  /* Zsálya – háttér, felületek */
+  --color-sage-50: #f9fbf6;
+  --color-sage-100: #eef3e7;
+  --color-sage-200: #dfe7d6;
+  --color-sage-300: #cbd8bd;
+  --color-sage-400: #a8bc93;
+
+  /* Erdő – elsődleges akcentus, gombok, kiemelés */
+  --color-forest-200: #b9cba9;
+  --color-forest-300: #6e8a5f;
+  --color-forest-400: #5b7a4f;
+  --color-forest-500: #4c6b44;
+  --color-forest-600: #3e5a38;
+  --color-forest-700: #33492e;
+
+  /* Tinta – szöveg */
+  --color-ink-300: #97a08d;
+  --color-ink-400: #7a8470;
+  --color-ink-500: #5c6653;
+  --color-ink-700: #3a4234;
+  --color-ink-900: #262c21;
+
+  /* Meleg kiegészítők – kategóriaszínek, jelölések */
+  --color-terracotta-400: #d89a5e;
+  --color-terracotta-500: #c97b3c;
+  --color-honey-400: #d9a65a;
+  --color-plum-500: #8e3b5a;
+
+  --shadow-soft: 0 1px 2px rgba(38, 44, 33, 0.04), 0 8px 24px -12px rgba(38, 44, 33, 0.16);
+  --shadow-lift: 0 2px 4px rgba(38, 44, 33, 0.06), 0 16px 32px -16px rgba(38, 44, 33, 0.24);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-sage-100);
+    /* Halvány meleg-zöld derengés, hogy ne legyen lapos a háttér. */
+    background-image:
+      radial-gradient(circle at 12% 0%, rgba(110, 138, 95, 0.18), transparent 42%),
+      radial-gradient(circle at 88% 6%, rgba(201, 123, 60, 0.08), transparent 38%);
+    background-attachment: fixed;
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+
+  ::selection {
+    background: var(--color-sage-300);
+  }
+}
+
+@layer components {
+  /* Alap kártya – receptkártyák és panelek közös alapja. */
+  .card {
+    background: #fff;
+    border: 1px solid var(--color-sage-200);
+    border-radius: 1.125rem;
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* Kis címke (kategória, allergén, tag). */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  /* Gombok – a mély erdőzöld a fő művelet. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.6rem 1.1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background: var(--color-forest-600);
+    color: #fff;
+  }
+  .btn-primary:hover {
+    background: var(--color-forest-700);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-forest-700);
+    border: 1px solid var(--color-sage-300);
+  }
+  .btn-ghost:hover {
+    background: var(--color-sage-50);
+    border-color: var(--color-forest-300);
+  }
+
+  /* Négyszögletes +/− léptető gomb (adagszámításhoz). */
+  .btn-step {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    background: var(--color-forest-600);
+    color: #fff;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .btn-step:hover {
+    background: var(--color-forest-700);
+  }
+
+  /* Szaggatott elválasztó – a receptlap jellegzetes vonala. */
+  .rule-dashed {
+    border: 0;
+    border-top: 1px dashed var(--color-sage-300);
+  }
+
+  /* Kipipálható kör a hozzávalókhoz. */
+  .check-circle {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--color-sage-400);
+    flex-shrink: 0;
+  }
+
+  /* A recept szöveges tartalma serif – "nyomtatott szakácskönyv" érzet. */
+  .prose-recipe {
+    font-family: var(--font-display);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    color: var(--color-ink-900);
+  }
+}

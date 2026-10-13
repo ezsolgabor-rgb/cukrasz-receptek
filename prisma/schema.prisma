@@ -1,0 +1,288 @@
+// Cukrász Recepttár – adatmodell
+// A "konfigurálható backend" itt kezdődik: kategóriák, mértékegységek,
+// átváltások és hozzávaló-törzsadatok mind adatbázis-sorok, nem kód.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Konfiguráció
+// ---------------------------------------------------------------------------
+
+/// Tetszőleges kulcs-érték beállítás (pl. alapértelmezett mértékegység,
+/// műhely neve, nyomtatási fejléc). Admin felületen szerkeszthető.
+model AppSetting {
+  key       String   @id
+  value     String
+  label     String?
+  group     String   @default("general")
+  updatedAt DateTime @updatedAt
+}
+
+/// Mértékegység. A `dimension` + `factorToBase` pár adja az automatikus
+/// átváltást: pl. kg (mass, 1000) <-> g (mass, 1) magától működik.
+/// A `dimension`-ön kívüli váltás (pl. csomag -> g) az UnitConversion táblában.
+model Unit {
+  id           String   @id @default(cuid())
+  code         String   @unique // "g", "kg", "db", "csomag", "tk"
+  name         String // "gramm", "darab", "teáskanál"
+  dimension    String // mass | volume | count | other
+  factorToBase Float    @default(1)
+  decimals     Int      @default(0) // hány tizedesjegyig értelmes
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  recipes        Recipe[]           @relation("RecipeYieldUnit")
+  ingredients    RecipeIngredient[]
+  baseOf         IngredientMaster[] @relation("IngredientBaseUnit")
+  conversionsFrom UnitConversion[]  @relation("ConversionFrom")
+  conversionsTo   UnitConversion[]  @relation("ConversionTo")
+
+  @@index([dimension])
+}
+
+/// Kontextusfüggő átváltás. Pl. "1 csomag porélesztő = 7 g".
+/// Ha ingredientId meg van adva, csak arra a hozzávalóra érvényes,
+/// egyébként globális (pl. 1 tk = 5 ml).
+model UnitConversion {
+  id         String  @id @default(cuid())
+  fromUnitId String
+  toUnitId   String
+  factor     Float // 1 fromUnit = factor * toUnit
+  ingredientId String?
+  note       String?
+
+  fromUnit Unit              @relation("ConversionFrom", fields: [fromUnitId], references: [id], onDelete: Cascade)
+  toUnit   Unit              @relation("ConversionTo", fields: [toUnitId], references: [id], onDelete: Cascade)
+  ingredient IngredientMaster? @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@index([fromUnitId, toUnitId])
+  @@index([ingredientId])
+}
+
+/// Receptkategória (admin felületen bővíthető, színes címkével).
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  color     String   @default("#C97B3C")
+  icon      String?
+  sortOrder Int      @default(0)
+  recipes   Recipe[]
+  createdAt DateTime @default(now())
+}
+
+/// Címke szabad kulcsszavakhoz: "karácsonyi", "vegan", "gyors".
+model Tag {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  recipes Recipe[] @relation("RecipeTags")
+}
+
+/// Hozzávaló-törzsadat: az "anyagkészlet". Ide kerül az ár, az allergén
+/// és a hozzá kötött átváltás. A receptben szereplő hozzávaló ehhez
+/// opcionálisan kapcsolódik – a kézzel írt recepteknél nem kötelező.
+model IngredientMaster {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  defaultUnitId     String?
+  pricePerBaseUnit  Float? // Ft / bázisegység (g, ml, db)
+  allergenNote      String? // "glutén, tej"
+  supplierNote      String? // hol veszed, márka
+  storageNote       String? // tárolás
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  defaultUnit Unit?             @relation("IngredientBaseUnit", fields: [defaultUnitId], references: [id], onDelete: SetNull)
+  conversions UnitConversion[]
+  lines       RecipeIngredient[]
+
+  @@index([name])
+}
+
+// ---------------------------------------------------------------------------
+// Recept
+// ---------------------------------------------------------------------------
+
+model Recipe {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  /// Alap adag: mennyiség + mértékegység (pl. 12 db, 1 tepsi, 850 g).
+  baseYieldQty    Float
+  baseYieldUnitId String
+  baseYieldUnit   Unit   @relation("RecipeYieldUnit", fields: [baseYieldUnitId], references: [id])
+  /// Szabad szöveges pontosítás: "1 tepsi 30x40 cm", "24 db 7 cm-es forma"
+  yieldNote String?
+
+  prepMinutes      Int?
+  bakeMinutes      Int?
+  bakeTemperatureC Int?
+  difficulty       Int? // 1-5
+  notes            String? // tippek, trükkök
+  source           String? // "nagymama füzete, 1978"
+
+  /// A szokásos sütési mennyiség (pl. „ebből rendszerint 3 tepsi kell”).
+  /// A receptlapon egy kattintással erre áll az adagszámítás.
+  usualYieldQty  Float?
+  usualYieldNote String?
+
+  isFavorite Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  ingredients RecipeIngredient[]
+  steps       RecipeStep[]
+  photos      RecipePhoto[]
+  notesLog    RecipeNote[]
+  orderItems  OrderItem[]
+  tags        Tag[]              @relation("RecipeTags")
+  usedAsPart  RecipeIngredient[] @relation("ComponentRecipe")
+
+  @@index([name])
+  @@index([categoryId])
+}
+
+/// Egy hozzávaló-sor a receptben. A `groupName` a többrészes receptekhez kell
+/// (pl. "Tészta", "Krém", "Máz"), a `scalable=false` pedig azokhoz a sorokhoz,
+/// amiket adagolásnál NEM szabad szorozni (csipet só, tepsi kenése, díszítés).
+model RecipeIngredient {
+  id       String @id @default(cuid())
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  sortOrder Int    @default(0)
+  groupName String? // "Tészta" | "Krém" | null = fő lista
+
+  name     String // szabad szöveg: "finomliszt"
+  quantity Float? // null = "ízlés szerint"
+  unitId   String?
+  unit     Unit?   @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  note     String? // "átszitálva", "szobahőmérsékletű"
+
+  /// Kész recept hozzávalóként (pl. a krémes tészta egy másik recept krémjét használja)
+  componentRecipeId String?
+  componentRecipe   Recipe?  @relation("ComponentRecipe", fields: [componentRecipeId], references: [id], onDelete: SetNull)
+
+  /// Ha false, az adag-átszámítás nem nyúl hozzá
+  scalable Boolean @default(true)
+
+  /// Opcionális kapcsolat a törzsadathoz (ár, allergén)
+  ingredientMasterId String?
+  ingredientMaster   IngredientMaster? @relation(fields: [ingredientMasterId], references: [id], onDelete: SetNull)
+
+  @@index([recipeId])
+  @@index([componentRecipeId])
+}
+
+model RecipeStep {
+  id       String @id @default(cuid())
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  sortOrder       Int     @default(0)
+  text            String
+  durationMinutes Int?
+  temperatureC    Int?
+  note            String?
+  /// Kép a lépéshez (pl. a hajtogatás állapota) – a RecipePhoto fájlnevére mutat
+  photoFileName   String?
+
+  @@index([recipeId])
+}
+
+/// Próbák naplója: „3. alkalom: kevesebb zselatin, így jobb lett”.
+/// Dátumozott bejegyzések, hogy a tapasztalat ne vesszen el.
+model RecipeNote {
+  id       String   @id @default(cuid())
+  recipeId String
+  recipe   Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  noteDate DateTime @default(now())
+  text     String
+  /// Pl. „sikerült”, „félresikerült”, „ötlet”
+  kind     String   @default("tapasztalat")
+
+  @@index([recipeId])
+}
+
+/// Megrendelés – a recepttár és a valódi munka összekötése.
+model Order {
+  id              String    @id @default(cuid())
+  customerName    String
+  customerContact String?
+  pickupAt        DateTime?
+  /// uj | folyamatban | kesz | atadva | lemondva
+  status          String    @default("uj")
+  notes           String?
+  isPaid          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  items OrderItem[]
+
+  @@index([pickupAt])
+  @@index([status])
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Ha kész recepthez tartozik, ide kapcsolódik; egyébként szabad szöveg.
+  recipeId String?
+  recipe   Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  title     String
+  portions  Float  @default(1)
+  /// Adag neve: „szelet”, „tepsi”, „doboz”
+  portionUnit String @default("szelet")
+  unitPrice Float?
+  notes     String?
+  sortOrder Int    @default(0)
+
+  @@index([orderId])
+}
+
+model RecipePhoto {
+  id       String @id @default(cuid())
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  fileName  String // a data/uploads mappában lévő fájl neve
+  caption   String?
+  sortOrder Int     @default(0)
+  isCover   Boolean @default(false)
+  /// Ez a fotó a kézzel írt eredeti lap? (megőrzéshez, összevetéshez)
+  isOriginalScan Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([recipeId])
+}
+
+/// Tortaforma -> szeletszám megfeleltetés.
+/// Műhelyenként eltér, ezért adatbázisban van: a beállításokban
+/// pontosítható lesz, kód írása nélkül.
+model CakeSize {
+  id         String   @id @default(cuid())
+  diameterCm Int      @unique
+  slices     Int
+  note       String?
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+}
