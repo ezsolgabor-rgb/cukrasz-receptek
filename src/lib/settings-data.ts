@@ -63,7 +63,7 @@ export async function loadIngredientRows(): Promise<RowData[]> {
 }
 
 export async function loadAkcioFigyeloData(): Promise<RowData[]> {
-  const list = await prisma.akcioFigyelo.findMany({
+  const list = await (prisma as any).akcioFigyelo.findMany({
     orderBy: { store: 'asc' },
     select: {
       id: true,
@@ -73,7 +73,13 @@ export async function loadAkcioFigyeloData(): Promise<RowData[]> {
       isActive: true
     }
   });
-  return list.map((akcio) => {
+  return list.map((akcio: {
+    id: string;
+    name: string;
+    store: string;
+    keywords: string[];
+    isActive: boolean;
+  }) => {
     const keywords = (akcio.keywords || []).join(', ');
       
     return {

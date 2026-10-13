@@ -60,7 +60,7 @@ export default async function EditRecipePage({
       note: step.note,
       photoFileName: step.photoFileName || null,
     })),
-    componentRecipeId: recipe.componentRecipeId || undefined,
+    componentRecipeId: recipe.componentRecipeId || null,
     componentChoices: [],
   };
 

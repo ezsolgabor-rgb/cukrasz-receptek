@@ -29,10 +29,10 @@ export default async function NewRecipePage() {
             mode="create"
             initial={{
               ...emptyRecipeForm(options.defaultUnitId),
-              componentRecipeId: undefined,
+              componentRecipeId: null,
               componentChoices: [],
-              photoFileName: undefined,
-              componentRecipe: undefined
+              photoFileName: null,
+              componentRecipe: null
             }}
             cancelHref="/"
             units={options.units}
