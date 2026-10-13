@@ -31,7 +31,8 @@ export default async function NewRecipePage() {
               ...emptyRecipeForm(options.defaultUnitId),
               componentRecipeId: undefined,
               componentChoices: [],
-              photoFileName: undefined
+              photoFileName: undefined,
+              componentRecipe: undefined
             }}
             cancelHref="/"
             units={options.units}
