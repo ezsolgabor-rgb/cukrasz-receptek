@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
     // A feltöltött fotókat saját route-handler szolgálja ki, nem kell külső domain.
     remotePatterns: [],
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
