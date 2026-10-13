@@ -27,7 +27,12 @@ export default async function NewRecipePage() {
         <div className="mt-6">
           <RecipeForm
             mode="create"
-            initial={emptyRecipeForm(options.defaultUnitId)}
+            initial={{
+              ...emptyRecipeForm(options.defaultUnitId),
+              componentRecipeId: null,
+              componentChoices: [],
+              photoFileName: null
+            }}
             cancelHref="/"
             units={options.units}
             categories={options.categories}

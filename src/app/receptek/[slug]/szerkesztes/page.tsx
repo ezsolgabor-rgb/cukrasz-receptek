@@ -58,7 +58,10 @@ export default async function EditRecipePage({
       durationMinutes: step.durationMinutes,
       temperatureC: step.temperatureC,
       note: step.note,
+      photoFileName: step.photoFileName || null,
     })),
+    componentRecipeId: null,
+    componentChoices: [],
   };
 
   return (
