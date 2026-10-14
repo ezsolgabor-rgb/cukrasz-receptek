@@ -1,87 +1,76 @@
 import { PrismaClient } from '@prisma/client'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
+import sqlite3 from 'sqlite3'
+import { open } from 'sqlite'
 
 // Configure Neon PostgreSQL connection with adapter
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
-const neonPrisma = new PrismaClient({ adapter })
-
-// Local SQLite connection (no adapter needed)
-const localPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.LOCAL_DATABASE_URL || 'file:./dev.db'
-    }
-  }
-})
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  console.log('Adatok átvitele a lokális adatbázisból a Neonba...')
+  console.log('Adatok átvitele a lokális SQLite-ból a Neonba...')
 
-  // Mértékegységek átvitele
-  const units = await localPrisma.unit.findMany()
-  await neonPrisma.unit.createMany({
-    data: units,
-    skipDuplicates: true
+  // Open SQLite connection
+  const db = await open({
+    filename: process.env.LOCAL_DATABASE_URL || './dev.db',
+    driver: sqlite3.Database
   })
 
-  // Kategóriák átvitele
-  const categories = await localPrisma.category.findMany()
-  await neonPrisma.category.createMany({
-    data: categories,
-    skipDuplicates: true
-  })
-
-  // Beállítások átvitele
-  const settings = await localPrisma.appSetting.findMany()
-  await neonPrisma.appSetting.createMany({
-    data: settings,
-    skipDuplicates: true
-  })
-
-  // Receptek átvitele
-  const recipes = await localPrisma.recipe.findMany({
-    include: {
-      ingredients: true,
-      steps: true,
-      photos: true,
-      notesLog: true,
-      tags: true
-    }
-  })
-  for (const recipe of recipes) {
-    await neonPrisma.recipe.create({
-      data: {
-        ...recipe,
-        ingredients: {
-          create: recipe.ingredients
-        },
-        steps: {
-          create: recipe.steps
-        },
-        photos: {
-          create: recipe.photos
-        },
-        notesLog: {
-          create: recipe.notesLog
-        },
-        tags: {
-          connect: recipe.tags.map(tag => ({ id: tag.id }))
-        }
-      }
+  try {
+    // Transfer Units
+    const units = await db.all('SELECT * FROM Unit')
+    await prisma.unit.createMany({
+      data: units,
+      skipDuplicates: true
     })
-  }
 
-  console.log('Adatok sikeresen át lettek másolva a Neon adatbázisba!')
+    // Transfer Categories
+    const categories = await db.all('SELECT * FROM Category')
+    await prisma.category.createMany({
+      data: categories,
+      skipDuplicates: true
+    })
+
+    // Transfer Settings
+    const settings = await db.all('SELECT * FROM AppSetting')
+    await prisma.appSetting.createMany({
+      data: settings,
+      skipDuplicates: true
+    })
+
+    // Transfer Recipes with related data
+    const recipes = await db.all('SELECT * FROM Recipe')
+    for (const recipe of recipes) {
+      const [ingredients, steps, photos, notes, tags] = await Promise.all([
+        db.all('SELECT * FROM RecipeIngredient WHERE recipeId = ?', recipe.id),
+        db.all('SELECT * FROM RecipeStep WHERE recipeId = ?', recipe.id),
+        db.all('SELECT * FROM RecipePhoto WHERE recipeId = ?', recipe.id),
+        db.all('SELECT * FROM RecipeNote WHERE recipeId = ?', recipe.id),
+        db.all('SELECT B FROM _RecipeTags WHERE A = ?', recipe.id)
+      ])
+
+      await prisma.recipe.create({
+        data: {
+          ...recipe,
+          ingredients: { create: ingredients },
+          steps: { create: steps },
+          photos: { create: photos },
+          notesLog: { create: notes },
+          tags: { connect: tags.map(tag => ({ id: tag.B })) }
+        }
+      })
+    }
+
+    console.log('Adatok sikeresen át lettek másolva a Neon adatbázisba!')
+  } catch (e) {
+    console.error('Hiba történt az adatátvitel során:', e)
+    process.exit(1)
+  } finally {
+    await db.close()
+    await prisma.$disconnect()
+  }
 }
 
 main()
-  .catch((e) => {
-    console.error('Hiba történt az adatátvitel során:', e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await localPrisma.$disconnect()
-    await neonPrisma.$disconnect()
-  })
