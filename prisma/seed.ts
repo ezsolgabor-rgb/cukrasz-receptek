@@ -7,13 +7,7 @@ const localDbUrl = process.env.LOCAL_DATABASE_URL || 'file:./dev.db'
 const neonDbUrl = process.env.DATABASE_URL || ''
 
 // Local SQLite connection
-const localPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: localDbUrl
-    }
-  }
-})
+const localPrisma = new PrismaClient()
 
 // Neon PostgreSQL connection with adapter
 const pool = new Pool({ connectionString: neonDbUrl })
