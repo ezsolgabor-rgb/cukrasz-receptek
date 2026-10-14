@@ -69,8 +69,10 @@ async function main() {
   } catch (e) {
     console.error('Hiba történt az adatátvitel során:', e)
     process.exit(1)
+  } catch (e) {
+    console.error('Hiba történt az adatátvitel során:', e)
+    process.exit(1)
   } finally {
-    db.close()
     await prisma.$disconnect()
   }
 }
