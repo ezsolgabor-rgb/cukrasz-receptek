@@ -1,10 +1,14 @@
 import { PrismaClient } from '@prisma/client'
 
 // Lokális SQLite adatbázis kapcsolat
-const localPrisma = new PrismaClient()
+const localPrisma = new PrismaClient({
+  datasourceUrl: process.env.LOCAL_DATABASE_URL || 'file:./dev.db'
+})
 
 // Neon PostgreSQL adatbázis kapcsolat
-const neonPrisma = new PrismaClient()
+const neonPrisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL
+})
 
 async function main() {
   console.log('Adatok átvitele a lokális adatbázisból a Neonba...')
