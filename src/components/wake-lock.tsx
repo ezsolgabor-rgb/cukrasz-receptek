@@ -51,10 +51,17 @@ export function WakeLockButton() {
     <button
       type="button"
       onClick={toggle}
-      className={`btn ${active ? "btn-primary" : "btn-ghost"}`}
+      className={`flex items-center gap-1 px-3 py-2 rounded-lg ${
+        active
+          ? "bg-forest-600 text-white shadow-md"
+          : "bg-white text-forest-700 border border-forest-200 hover:border-forest-300"
+      }`}
       title="A képernyő nem alszik el, amíg a recept nyitva van"
     >
-      {active ? "Képernyő ébren ✓" : "Képernyő ébren tartása"}
+      <span className="text-lg">{active ? "✓" : "⏻"}</span>
+      <span className="hidden sm:inline">
+        {active ? "Képernyő ébren" : "Ébren tartás"}
+      </span>
     </button>
   );
 }

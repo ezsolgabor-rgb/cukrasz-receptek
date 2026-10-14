@@ -160,10 +160,11 @@ export function RecipeSteps({
                       <button
                         type="button"
                         onClick={() => start(step)}
-                        className="chip border border-sage-300 bg-white font-semibold text-forest-700 hover:border-forest-300"
+                        className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white border border-forest-200 hover:border-forest-300 font-medium text-forest-700"
                         title="Visszaszámláló indítása"
                       >
-                        ⏱ {formatDuration(step.durationMinutes)} indítása
+                        <span className="text-lg">⏱</span>
+                        <span>{formatDuration(step.durationMinutes)} indítása</span>
                       </button>
                     )}
 
