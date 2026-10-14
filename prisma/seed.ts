@@ -1,21 +1,13 @@
 import { PrismaClient } from '@prisma/client'
 
-// Lokális adatbázis kapcsolat
+// Lokális SQLite adatbázis kapcsolat
 const localPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.LOCAL_DATABASE_URL || 'file:./dev.db'
-    }
-  }
+  datasourceUrl: process.env.LOCAL_DATABASE_URL || 'file:./dev.db'
 })
 
-// Neon adatbázis kapcsolat
+// Neon PostgreSQL adatbázis kapcsolat
 const neonPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL
-    }
-  }
+  datasourceUrl: process.env.DATABASE_URL
 })
 
 async function main() {
