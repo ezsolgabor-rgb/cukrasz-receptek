@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { EB_Garamond, Inter } from "next/font/google";
+import { Navbar } from "../components/navbar";
 
 import "./globals.css";
 
@@ -31,7 +32,10 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh">
         <div className="mx-auto max-w-[100vw] overflow-x-hidden">
-          {children}
+          <Navbar />
+          <main className="pt-4">
+            {children}
+          </main>
         </div>
       </body>
     </html>
