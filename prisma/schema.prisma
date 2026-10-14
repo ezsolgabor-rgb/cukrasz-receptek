@@ -273,6 +273,51 @@ model RecipePhoto {
   @@index([recipeId])
 }
 
+/// Szupermarketek (Lidl, Penny, Spar, stb.)
+model Supermarket {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  
+  prices IngredientPrice[]
+  promotions Promotion[]
+}
+
+/// Alapanyagok árai szupermarketekben
+model IngredientPrice {
+  id              String   @id @default(cuid())
+  ingredientId    String
+  supermarketId   String
+  pricePerBaseUnit Float    // Ft / bázisegység (g, ml, db)
+  validFrom       DateTime @default(now())
+  validTo         DateTime?
+  note            String?  // pl. "csomagolás változott"
+
+  ingredient  IngredientMaster @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  supermarket Supermarket      @relation(fields: [supermarketId], references: [id], onDelete: Cascade)
+
+  @@index([ingredientId])
+  @@index([supermarketId])
+}
+
+/// Aktív akciók és kedvezmények
+model Promotion {
+  id            String   @id @default(cuid())
+  supermarketId String
+  ingredientId  String
+  discountPrice Float    // kedvezményes ár
+  validFrom     DateTime
+  validTo       DateTime
+  note          String?  // pl. "2+1 ingyen"
+
+  supermarket Supermarket      @relation(fields: [supermarketId], references: [id], onDelete: Cascade)
+  ingredient  IngredientMaster @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@index([supermarketId])
+  @@index([ingredientId])
+}
+
 /// Tortaforma -> szeletszám megfeleltetés.
 /// Műhelyenként eltér, ezért adatbázisban van: a beállításokban
 /// pontosítható lesz, kód írása nélkül.
