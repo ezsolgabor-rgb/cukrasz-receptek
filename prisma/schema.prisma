@@ -28,21 +28,21 @@ model AppSetting {
 /// átváltást: pl. kg (mass, 1000) <-> g (mass, 1) magától működik.
 /// A `dimension`-ön kívüli váltás (pl. csomag -> g) az UnitConversion táblában.
 model Unit {
-  id           String   @id @default(cuid())
-  code         String   @unique // "g", "kg", "db", "csomag", "tk"
-  name         String // "gramm", "darab", "teáskanál"
-  dimension    String // mass | volume | count | other
+  id            String   @id @default(cuid())
+  code          String   @unique // "g", "kg", "db", "csomag", "tk"
+  name          String // "gramm", "darab", "teáskanál"
+  dimension     String // mass | volume | count | other
   factorToBase Float    @default(1)
-  decimals     Int      @default(0) // hány tizedesjegyig értelmes
-  sortOrder    Int      @default(0)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  decimals      Int      @default(0) // hány tizedesjegyig értelmes
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
 
-  recipes        Recipe[]           @relation("RecipeYieldUnit")
-  ingredients    RecipeIngredient[]
-  baseOf         IngredientMaster[] @relation("IngredientBaseUnit")
-  conversionsFrom UnitConversion[]  @relation("ConversionFrom")
-  conversionsTo   UnitConversion[]  @relation("ConversionTo")
+  recipes         Recipe[]           @relation("RecipeYieldUnit")
+  ingredients     RecipeIngredient[]
+  baseOf          IngredientMaster[] @relation("IngredientBaseUnit")
+  conversionsFrom UnitConversion[]   @relation("ConversionFrom")
+  conversionsTo   UnitConversion[]   @relation("ConversionTo")
 
   @@index([dimension])
 }
@@ -51,15 +51,15 @@ model Unit {
 /// Ha ingredientId meg van adva, csak arra a hozzávalóra érvényes,
 /// egyébként globális (pl. 1 tk = 5 ml).
 model UnitConversion {
-  id         String  @id @default(cuid())
-  fromUnitId String
-  toUnitId   String
-  factor     Float // 1 fromUnit = factor * toUnit
+  id           String  @id @default(cuid())
+  fromUnitId   String
+  toUnitId     String
+  factor       Float // 1 fromUnit = factor * toUnit
   ingredientId String?
-  note       String?
+  note         String?
 
-  fromUnit Unit              @relation("ConversionFrom", fields: [fromUnitId], references: [id], onDelete: Cascade)
-  toUnit   Unit              @relation("ConversionTo", fields: [toUnitId], references: [id], onDelete: Cascade)
+  fromUnit   Unit              @relation("ConversionFrom", fields: [fromUnitId], references: [id], onDelete: Cascade)
+  toUnit     Unit              @relation("ConversionTo", fields: [toUnitId], references: [id], onDelete: Cascade)
   ingredient IngredientMaster? @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 
   @@index([fromUnitId, toUnitId])
@@ -89,19 +89,21 @@ model Tag {
 /// és a hozzá kötött átváltás. A receptben szereplő hozzávaló ehhez
 /// opcionálisan kapcsolódik – a kézzel írt recepteknél nem kötelező.
 model IngredientMaster {
-  id                String   @id @default(cuid())
-  name              String   @unique
-  defaultUnitId     String?
-  pricePerBaseUnit  Float? // Ft / bázisegység (g, ml, db)
-  allergenNote      String? // "glutén, tej"
-  supplierNote      String? // hol veszed, márka
-  storageNote       String? // tárolás
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
+  id               String   @id @default(cuid())
+  name             String   @unique
+  defaultUnitId    String?
+  pricePerBaseUnit Float? // Ft / bázisegység (g, ml, db)
+  allergenNote     String? // "glutén, tej"
+  supplierNote     String? // hol veszed, márka
+  storageNote      String? // tárolás
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
 
-  defaultUnit Unit?             @relation("IngredientBaseUnit", fields: [defaultUnitId], references: [id], onDelete: SetNull)
+  defaultUnit Unit?              @relation("IngredientBaseUnit", fields: [defaultUnitId], references: [id], onDelete: SetNull)
   conversions UnitConversion[]
   lines       RecipeIngredient[]
+  prices      IngredientPrice[]  // <- HOZZÁADVA A HIÁNYZÓ RELÁCIÓ
+  promotions  Promotion[]        // <- HOZZÁADVA A HIÁNYZÓ RELÁCIÓ
 
   @@index([name])
 }
@@ -163,7 +165,7 @@ model RecipeIngredient {
   recipeId String
   recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
-  sortOrder Int    @default(0)
+  sortOrder Int     @default(0)
   groupName String? // "Tészta" | "Krém" | null = fő lista
 
   name     String // szabad szöveg: "finomliszt"
@@ -174,7 +176,7 @@ model RecipeIngredient {
 
   /// Kész recept hozzávalóként (pl. a krémes tészta egy másik recept krémjét használja)
   componentRecipeId String?
-  componentRecipe   Recipe?  @relation("ComponentRecipe", fields: [componentRecipeId], references: [id], onDelete: SetNull)
+  componentRecipe   Recipe? @relation("ComponentRecipe", fields: [componentRecipeId], references: [id], onDelete: SetNull)
 
   /// Ha false, az adag-átszámítás nem nyúl hozzá
   scalable Boolean @default(true)
@@ -246,13 +248,13 @@ model OrderItem {
   recipeId String?
   recipe   Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
-  title     String
-  portions  Float  @default(1)
+  title       String
+  portions    Float  @default(1)
   /// Adag neve: „szelet”, „tepsi”, „doboz”
   portionUnit String @default("szelet")
-  unitPrice Float?
-  notes     String?
-  sortOrder Int    @default(0)
+  unitPrice   Float?
+  notes       String?
+  sortOrder   Int    @default(0)
 
   @@index([orderId])
 }
@@ -262,13 +264,13 @@ model RecipePhoto {
   recipeId String
   recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
-  fileName  String // a data/uploads mappában lévő fájl neve
-  caption   String?
-  sortOrder Int     @default(0)
-  isCover   Boolean @default(false)
+  fileName       String // a data/uploads mappában lévő fájl neve
+  caption        String?
+  sortOrder      Int     @default(0)
+  isCover        Boolean @default(false)
   /// Ez a fotó a kézzel írt eredeti lap? (megőrzéshez, összevetéshez)
   isOriginalScan Boolean @default(false)
-  createdAt DateTime @default(now())
+  createdAt      DateTime @default(now())
 
   @@index([recipeId])
 }
@@ -279,20 +281,20 @@ model Supermarket {
   name      String   @unique
   logoUrl   String?
   createdAt DateTime @default(now())
-  
-  prices IngredientPrice[]
+
+  prices     IngredientPrice[]
   promotions Promotion[]
 }
 
 /// Alapanyagok árai szupermarketekben
 model IngredientPrice {
-  id              String   @id @default(cuid())
-  ingredientId    String
-  supermarketId   String
+  id               String   @id @default(cuid())
+  ingredientId     String
+  supermarketId    String
   pricePerBaseUnit Float    // Ft / bázisegység (g, ml, db)
-  validFrom       DateTime @default(now())
-  validTo         DateTime?
-  note            String?  // pl. "csomagolás változott"
+  validFrom        DateTime @default(now())
+  validTo          DateTime?
+  note             String?  // pl. "csomagolás változott"
 
   ingredient  IngredientMaster @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   supermarket Supermarket      @relation(fields: [supermarketId], references: [id], onDelete: Cascade)
@@ -322,11 +324,11 @@ model Promotion {
 /// Műhelyenként eltér, ezért adatbázisban van: a beállításokban
 /// pontosítható lesz, kód írása nélkül.
 model CakeSize {
-  id         String   @id @default(cuid())
+  id          String   @id @default(cuid())
   diameterCm Int      @unique
-  slices     Int
-  note       String?
-  sortOrder  Int      @default(0)
-  isActive   Boolean  @default(true)
-  updatedAt  DateTime @updatedAt
+  slices      Int
+  note        String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
 }
