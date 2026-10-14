@@ -1,51 +1,89 @@
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
+// Lokális adatbázis kapcsolat
+const localPrisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.LOCAL_DATABASE_URL || 'file:./dev.db'
+    }
+  }
+})
+
+// Neon adatbázis kapcsolat
+const neonPrisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  }
+})
 
 async function main() {
-  // Alapértelmezett mértékegységek
-  await prisma.unit.createMany({
-    data: [
-      { code: 'g', name: 'gramm', dimension: 'mass', factorToBase: 1 },
-      { code: 'kg', name: 'kilogramm', dimension: 'mass', factorToBase: 1000 },
-      { code: 'ml', name: 'milliliter', dimension: 'volume', factorToBase: 1 },
-      { code: 'l', name: 'liter', dimension: 'volume', factorToBase: 1000 },
-      { code: 'db', name: 'darab', dimension: 'count', factorToBase: 1 },
-      { code: 'tk', name: 'teáskanál', dimension: 'volume', factorToBase: 5 },
-      { code: 'ek', name: 'evőkanál', dimension: 'volume', factorToBase: 15 },
-    ],
-    skipDuplicates: true,
+  console.log('Adatok átvitele a lokális adatbázisból a Neonba...')
+
+  // Mértékegységek átvitele
+  const units = await localPrisma.unit.findMany()
+  await neonPrisma.unit.createMany({
+    data: units,
+    skipDuplicates: true
   })
 
-  // Alapértelmezett kategóriák
-  await prisma.category.createMany({
-    data: [
-      { name: 'Torták', slug: 'tortak', color: '#C97B3C' },
-      { name: 'Sütemények', slug: 'sutemenyek', color: '#8A6E4B' },
-      { name: 'Krémes sütik', slug: 'kremes-sutik', color: '#D4A373' },
-      { name: 'Piskóták', slug: 'piskotak', color: '#F4A261' },
-      { name: 'Kekszek', slug: 'kekszek', color: '#E76F51' },
-    ],
-    skipDuplicates: true,
+  // Kategóriák átvitele
+  const categories = await localPrisma.category.findMany()
+  await neonPrisma.category.createMany({
+    data: categories,
+    skipDuplicates: true
   })
 
-  // Alapértelmezett beállítások
-  await prisma.appSetting.createMany({
-    data: [
-      { key: 'shopName', value: 'Klau Cukrászda', label: 'Műhely neve' },
-      { key: 'defaultUnit', value: 'g', label: 'Alapértelmezett mértékegység' },
-    ],
-    skipDuplicates: true,
+  // Beállítások átvitele
+  const settings = await localPrisma.appSetting.findMany()
+  await neonPrisma.appSetting.createMany({
+    data: settings,
+    skipDuplicates: true
   })
 
-  console.log('Alapértelmezett adatok sikeresen feltöltve!')
+  // Receptek átvitele
+  const recipes = await localPrisma.recipe.findMany({
+    include: {
+      ingredients: true,
+      steps: true,
+      photos: true,
+      notesLog: true,
+      tags: true
+    }
+  })
+  for (const recipe of recipes) {
+    await neonPrisma.recipe.create({
+      data: {
+        ...recipe,
+        ingredients: {
+          create: recipe.ingredients
+        },
+        steps: {
+          create: recipe.steps
+        },
+        photos: {
+          create: recipe.photos
+        },
+        notesLog: {
+          create: recipe.notesLog
+        },
+        tags: {
+          connect: recipe.tags.map(tag => ({ id: tag.id }))
+        }
+      }
+    })
+  }
+
+  console.log('Adatok sikeresen át lettek másolva a Neon adatbázisba!')
 }
 
 main()
   .catch((e) => {
-    console.error('Hiba történt a seedelés során:', e)
+    console.error('Hiba történt az adatátvitel során:', e)
     process.exit(1)
   })
   .finally(async () => {
-    await prisma.$disconnect()
+    await localPrisma.$disconnect()
+    await neonPrisma.$disconnect()
   })
