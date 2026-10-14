@@ -3,9 +3,12 @@ import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 // Configure Neon PostgreSQL connection
-const pool = new Pool({ 
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: {
+    rejectUnauthorized: false,
+    ca: process.env.SSL_CERT // Opcionális: ha egyedi SSL tanúsítványra van szükség
+  }
 })
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
