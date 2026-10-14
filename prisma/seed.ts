@@ -2,9 +2,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
 // Local SQLite connection
-const localPrisma = new PrismaClient({
-  datasourceUrl: process.env.LOCAL_DATABASE_URL || 'file:./dev.db'
-})
+const localPrisma = new PrismaClient()
 
 // Neon PostgreSQL connection
 const neonAdapter = new PrismaPg({ 
