@@ -11,8 +11,30 @@ const prisma = new PrismaClient({ adapter })
 async function main() {
   console.log('Adatok átvitele a lokális SQLite-ból a Neonba...')
 
-  // Open SQLite connection
-  const db = new Database(process.env.LOCAL_DATABASE_URL || './dev.db')
+  // Open SQLite connection - try multiple possible locations
+  const dbPaths = [
+    process.env.LOCAL_DATABASE_URL,
+    './prisma/dev.db',
+    './dev.db',
+    '../prisma/dev.db',
+    '../dev.db'
+  ]
+  
+  let db
+  for (const path of dbPaths) {
+    if (!path) continue
+    try {
+      db = new Database(path)
+      console.log(`SQLite adatbázis megnyitva: ${path}`)
+      break
+    } catch (e) {
+      console.log(`Nem sikerült megnyitni: ${path}`)
+    }
+  }
+
+  if (!db) {
+    throw new Error('Nem található SQLite adatbázis fájl! Próbált helyek: ' + dbPaths.filter(p => p).join(', '))
+  }
 
   try {
     // Transfer Units
