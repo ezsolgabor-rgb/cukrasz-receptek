@@ -1,14 +1,20 @@
-import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
+import { Pool } from 'pg'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-// Local SQLite connection
-const localPrisma = new PrismaClient()
+// Configure Neon PostgreSQL connection with adapter
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const adapter = new PrismaPg(pool)
+const neonPrisma = new PrismaClient({ adapter })
 
-// Neon PostgreSQL connection
-const neonAdapter = new PrismaPg({ 
-  connectionString: process.env.DATABASE_URL 
+// Local SQLite connection (no adapter needed)
+const localPrisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.LOCAL_DATABASE_URL || 'file:./dev.db'
+    }
+  }
 })
-const neonPrisma = new PrismaClient({ adapter: neonAdapter })
 
 async function main() {
   console.log('Adatok átvitele a lokális adatbázisból a Neonba...')
