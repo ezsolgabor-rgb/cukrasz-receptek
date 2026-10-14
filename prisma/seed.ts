@@ -3,32 +3,49 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  // Exportáljuk a lokális adatokat
-  const recipes = await prisma.$queryRaw`SELECT * FROM "Recipe"`
-  const categories = await prisma.$queryRaw`SELECT * FROM "Category"`
-  // ... és így tovább minden táblához
-
-  // Kapcsolódás a Neon adatbázishoz
-  const neonPrisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: "postgresql://neondb_owner:npg_2iEqSGn4oWOj@ep-young-band-babvxrkl-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require"
-      }
-    }
+  // Alapértelmezett mértékegységek
+  await prisma.unit.createMany({
+    data: [
+      { code: 'g', name: 'gramm', dimension: 'mass', factorToBase: 1 },
+      { code: 'kg', name: 'kilogramm', dimension: 'mass', factorToBase: 1000 },
+      { code: 'ml', name: 'milliliter', dimension: 'volume', factorToBase: 1 },
+      { code: 'l', name: 'liter', dimension: 'volume', factorToBase: 1000 },
+      { code: 'db', name: 'darab', dimension: 'count', factorToBase: 1 },
+      { code: 'tk', name: 'teáskanál', dimension: 'volume', factorToBase: 5 },
+      { code: 'ek', name: 'evőkanál', dimension: 'volume', factorToBase: 15 },
+    ],
+    skipDuplicates: true,
   })
 
-  // Adatok importálása
-  await neonPrisma.$executeRaw`INSERT INTO "Category" SELECT * FROM ${categories}`
-  await neonPrisma.$executeRaw`INSERT INTO "Recipe" SELECT * FROM ${recipes}`
-  // ... és így tovább minden táblához
+  // Alapértelmezett kategóriák
+  await prisma.category.createMany({
+    data: [
+      { name: 'Torták', slug: 'tortak', color: '#C97B3C' },
+      { name: 'Sütemények', slug: 'sutemenyek', color: '#8A6E4B' },
+      { name: 'Krémes sütik', slug: 'kremes-sutik', color: '#D4A373' },
+      { name: 'Piskóták', slug: 'piskotak', color: '#F4A261' },
+      { name: 'Kekszek', slug: 'kekszek', color: '#E76F51' },
+    ],
+    skipDuplicates: true,
+  })
+
+  // Alapértelmezett beállítások
+  await prisma.appSetting.createMany({
+    data: [
+      { key: 'shopName', value: 'Klau Cukrászda', label: 'Műhely neve' },
+      { key: 'defaultUnit', value: 'g', label: 'Alapértelmezett mértékegység' },
+    ],
+    skipDuplicates: true,
+  })
+
+  console.log('Alapértelmezett adatok sikeresen feltöltve!')
 }
 
 main()
   .catch((e) => {
-    console.error(e)
+    console.error('Hiba történt a seedelés során:', e)
     process.exit(1)
   })
   .finally(async () => {
     await prisma.$disconnect()
-    await neonPrisma.$disconnect()
   })
