@@ -3,10 +3,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { DarkModeToggle } from "./dark-mode-toggle";
 
-/**
- * Közös fejléc minden oldalon. A műhely nevét az adatbázisból olvassa,
- * így a beállításokban átírható.
- */
 export async function SiteHeader() {
   const shopName = await prisma.appSetting
     .findUnique({ where: { key: "shopName" } })
@@ -45,7 +41,7 @@ export async function SiteHeader() {
             Beállítások
           </Link>
           <Link href="/receptek/uj" className="btn btn-primary !px-2 !py-1.5 text-xs sm:!px-4 sm:text-sm dark:bg-gray-800 dark:hover:bg-gray-700">
-            + Új recept
+            + Új
           </Link>
         </nav>
       </div>
