@@ -55,6 +55,23 @@ export default async function EditCategoryPage({
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-ink-700 dark:text-gray-300">
+              Szín jelölés
+            </label>
+            <div className="mt-1 flex items-center gap-3">
+              <input
+                type="color"
+                name="color"
+                defaultValue={category.color ?? "#22c55e"}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-sage-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900"
+              />
+              <span className="text-sm text-ink-500 dark:text-gray-400">
+                Válassz egy színt a kategóriához
+              </span>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 pt-4">
             <Link href="/" className="btn btn-ghost">
               Mégse
