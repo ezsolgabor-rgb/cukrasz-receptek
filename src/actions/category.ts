@@ -31,6 +31,37 @@ export async function createCategory(formData: FormData) {
     throw new Error('Nem sikerült létrehozni a kategóriát.')
   }
 
-  revalidatePath('/receptek')
-  redirect('/receptek')
+  revalidatePath('/')
+  redirect('/')
+}
+
+export async function updateCategory(id: string, formData: FormData) {
+  const name = formData.get('name') as string
+
+  if (!name) {
+    throw new Error('A kategória neve kötelező!')
+  }
+
+  const slug = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  try {
+    await prisma.category.update({
+      where: { id },
+      data: {
+        name,
+        slug,
+      },
+    })
+  } catch (error) {
+    console.error('Hiba a kategória frissítésekor:', error)
+    throw new Error('Nem sikerült frissíteni a kategóriát.')
+  }
+
+  revalidatePath('/')
+  redirect('/')
 }
