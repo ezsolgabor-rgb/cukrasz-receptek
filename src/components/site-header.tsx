@@ -33,13 +33,19 @@ export async function SiteHeader() {
             Receptek
           </Link>
           <Link
+            href="/kategoriak/uj"
+            className="btn btn-ghost !px-2 !py-1.5 text-xs sm:!px-4 sm:text-sm dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            + Kategória
+          </Link>
+          <Link
             href="/beallitasok"
             className="btn btn-ghost !px-2 !py-1.5 text-xs sm:!px-4 sm:text-sm dark:text-gray-300 dark:hover:bg-gray-800"
           >
             Beállítások
           </Link>
           <Link href="/receptek/uj" className="btn btn-primary !px-2 !py-1.5 text-xs sm:!px-4 sm:text-sm dark:bg-gray-800 dark:hover:bg-gray-700">
-            + Új
+            + Új recept
           </Link>
         </nav>
       </div>
