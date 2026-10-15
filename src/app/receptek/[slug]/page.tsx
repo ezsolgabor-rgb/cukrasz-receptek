@@ -8,6 +8,7 @@ import { RecipeIngredients } from "@/components/recipe-ingredients";
 import { RecipeNotes } from "@/components/recipe-notes";
 import { RecipeSteps } from "@/components/recipe-steps";
 import { SiteHeader } from "@/components/site-header";
+import { CookingTools } from "@/components/cooking-tools"; // <-- ÚJ IMPORT
 import { formatDuration, formatNumber } from "@/lib/format";
 import { loadRecipeDetail } from "@/lib/recipe-detail";
 
@@ -124,6 +125,9 @@ export default async function RecipePage({
             </div>
           )}
         </header>
+
+        {/* --- ITT JELENNEK MEG A KONYHAI ESZKÖZÖK (Időzítő + WakeLock) --- */}
+        <CookingTools bakeMinutes={detail.bakeMinutes} />
 
         <section className="mt-6">
           <hr className="rule-dashed" />

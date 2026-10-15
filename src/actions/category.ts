@@ -24,7 +24,6 @@ export async function createCategory(formData: FormData) {
       data: {
         name,
         slug,
-        description: description || null,
       },
     })
   } catch (error) {
