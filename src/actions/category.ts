@@ -1,6 +1,6 @@
 'use server'
 
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -20,7 +20,7 @@ export async function createCategory(formData: FormData) {
     .replace(/^-+|-+$/g, '')
 
   try {
-    await db.category.create({
+    await prisma.category.create({
       data: {
         name,
         slug,
