@@ -17,9 +17,9 @@ const garamond = EB_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Klau recepttár",
+  title: "Gábor receptkönyve",
   description:
-    "Saját receptek egy helyen: adagszámítás szeletre és tepsiire, hozzávalók, lépések és fotók.",
+    "Saját receptek egy helyen: hozzávalók, adagszámítás, lépések és fotók.",
 };
 
 export default function RootLayout({
