@@ -56,6 +56,8 @@ export default async function CookingModePage({
             baseYieldQty={detail.baseYieldQty}
             baseYieldUnit={detail.baseYieldUnit}
             usualYieldQty={detail.usualYieldQty}
+            priceMultiplier={detail.priceMultiplier}
+            currency={detail.currency}
             panSizes={detail.panSizes}
           />
         </div>
