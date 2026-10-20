@@ -32,11 +32,26 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       const match = line.match(/^([\d.,\/]+)\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?\s+(.+)$/);
       if (match) {
         const qty = parseFloat(match[1].replace(",", ".")) || 1;
-        const unit = match[2] || "";
+        const unitStr = (match[2] || "").toLowerCase();
         const ingredientName = match[3];
-        return { qty, unit, name: ingredientName, raw: line };
+
+        const foundUnit = units.find((u: any) => 
+          u.code.toLowerCase() === unitStr || u.name.toLowerCase() === unitStr
+        );
+
+        return { 
+          qty, 
+          unitId: foundUnit ? foundUnit.id : (units[0]?.id || null),
+          name: ingredientName, 
+          raw: line 
+        };
       } else {
-        return { qty: 1, unit: "", name: line, raw: line };
+        return { 
+          qty: 1, 
+          unitId: null, 
+          name: line, 
+          raw: line 
+        };
       }
     });
   }
@@ -59,36 +74,55 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     const finalIngredients = parsedIngredients.length > 0 ? parsedIngredients : parseIngredients(rawIngredients);
     const finalSteps = parsedSteps.length > 0 ? parsedSteps : rawSteps.split("\n").map(l => l.trim()).filter(Boolean);
 
-    // Összeállítjuk az objektumot a repository által elvárt formátumban
     const payload = {
       id: initial?.id || undefined,
       name,
       categoryId,
       baseYieldQty: Number(baseYieldQty),
       baseYieldUnitId,
-      ingredients: finalIngredients.map((item, index) => ({
-        sortOrder: index,
-        rawText: item.raw,
-        parsedQty: item.qty * (baseYieldQty / (initialYieldQty || 1)),
-        parsedUnitId: baseYieldUnitId, // alapértelmezett vagy felismert
-        ingredientName: item.name,
+      ingredients: finalIngredients.map((item) => ({
+        name: item.name,
+        quantity: item.qty * (baseYieldQty / (initialYieldQty || 1)),
+        unitId: item.unitId,
+        scalable: true,
+        note: null,
+        groupName: null,
+        componentRecipeId: null,
       })),
-      steps: finalSteps.map((stepText, index) => ({
-        sortOrder: index,
-        instruction: stepText,
+      steps: finalSteps.map((stepText) => ({
+        text: stepText,
+        durationMinutes: null,
+        temperatureC: null,
+        note: null,
+        photoFileName: null,
       })),
+      tagNames: [],
+      description: null,
+      yieldNote: null,
+      prepMinutes: null,
+      bakeMinutes: null,
+      bakeTemperatureC: null,
+      difficulty: "medium",
+      source: null,
+      notes: null,
+      isFavorite: false,
+      usualYieldQty: null,
+      usualYieldNote: null,
     };
 
     try {
       const result = await saveRecipe(payload);
 
       if (!result.ok) {
-        throw new Error("Sikertelen mentés az adatbázisba");
+        console.error("Mentési hibák:", result.errors);
+        alert("Mentési hiba: " + (result.errors?.[0] || "Ismeretlen hiba"));
+        return;
       }
 
       router.push(`/receptek/${result.slug}`);
       router.refresh();
     } catch (err) {
+      console.error(err);
       alert("Hiba történt a recept mentése során. Kérlek próbáld újra!");
     } finally {
       setIsSaving(false);
@@ -178,7 +212,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
                   <li key={idx} className="bg-sage-50 dark:bg-slate-800 p-2 rounded-lg flex justify-between">
                     <span>{item.name}</span>
                     <span className="font-bold text-forest-700 dark:text-emerald-400">
-                      {scaledQty} {item.unit}
+                      {scaledQty}
                     </span>
                   </li>
                 );
