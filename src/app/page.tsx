@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { CategoryCard } from "@/components/category-card";
 import { RecipeGrid } from "@/components/recipe-grid";
-import { SiteHeader } from "@/components/site-header";
 import { prisma } from "@/lib/db";
 import { formatNumber } from "@/lib/format";
 import { getCategorySummaries, listRecipeCards } from "@/lib/recipe-queries";
@@ -47,8 +46,6 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-dvh">
-      <SiteHeader />
-
       <main className="mx-auto max-w-6xl px-5 py-8 md:py-12 bg-white dark:bg-slate-900">
         {/* --- Kereső ---------------------------------------------------- */}
         <section>
@@ -57,7 +54,7 @@ export default async function HomePage() {
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-500 dark:text-slate-400 md:text-base">
             Válassz kategóriát, vagy keress rá egy névre, hozzávalóra. Az adag
-            bármikor átszámolható – tortánál szeletre, ahogy rendelitek.
+            bármikor átszámolható.
           </p>
 
           <form
@@ -68,7 +65,7 @@ export default async function HomePage() {
             <input
               type="search"
               name="q"
-              placeholder="Keresés: krémes, beigli, málna…"
+              placeholder="Keresés: piskóta, csirke, málna…"
               className="w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 outline-none placeholder:text-ink-300 focus:border-forest-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               aria-label="Keresés a receptek között"
             />
@@ -102,7 +99,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* --- Alapok: krémek, piskóták, tészták ------------------------- */}
+        {/* --- Alapok / Főbb elemek -------------------------------------- */}
         {baseCategory && (
           <section className="mt-12">
             <div
@@ -115,11 +112,10 @@ export default async function HomePage() {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
                   <h2 className="font-display text-2xl text-ink-900">
-                    Alapok – krémek, piskóták, tészták
+                    {baseCategory.name}
                   </h2>
                   <p className="mt-1 max-w-2xl text-sm text-ink-500">
-                    Ezeket egyedül is megcsinálhatod, de több recept épül rájuk.
-                    Itt a helyük, hogy egy anyagot csak egyszer kelljen javítani.
+                    Ezekre az alapanyagokra vagy receptekre gyakran építesz rá.
                   </p>
                 </div>
                 <Link
@@ -127,14 +123,13 @@ export default async function HomePage() {
                   className="text-sm font-semibold hover:underline"
                   style={{ color: baseCategory.color }}
                 >
-                  Összes alaprecept →
+                  Összes →
                 </Link>
               </div>
 
               {baseRecipes.length === 0 ? (
                 <p className="mt-4 text-sm text-ink-400">
-                  Még nincs alaprecept. Vegyél fel ide például egy vaníliakrémet,
-                  egy piskótát vagy egy omlós tésztát.
+                  Még nincs elem ebben a kategóriában.
                 </p>
               ) : (
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
