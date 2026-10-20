@@ -1,5 +1,6 @@
 import { RecipeForm } from "@/components/recipe-form";
 import { SiteHeader } from "@/components/site-header";
+import { TxtRecipeImporter } from "@/components/txt-recipe-importer"; // Opcionális, ha elkészíted
 import {
   emptyRecipeForm,
   getRecipeFormOptions,
@@ -7,7 +8,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Új recept – Klau recepttár" };
+export const metadata = { title: "Új recept – Gábor receptkönyve" };
 
 export default async function NewRecipePage() {
   const options = await getRecipeFormOptions();
