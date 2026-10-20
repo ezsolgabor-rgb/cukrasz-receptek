@@ -9,6 +9,7 @@ import { RecipeNotes } from "@/components/recipe-notes";
 import { RecipeSteps } from "@/components/recipe-steps";
 import { SiteHeader } from "@/components/site-header";
 import { CookingTools } from "@/components/cooking-tools";
+import { AddToShoppingListButton } from "@/components/add-to-shopping-list-button";
 import { formatDuration, formatNumber } from "@/lib/format";
 import { loadRecipeDetail } from "@/lib/recipe-detail";
 
@@ -105,6 +106,10 @@ export default async function RecipePage({
             <Link href={`/receptek/${detail.slug}/sutes`} className="btn btn-ghost">
               Sütés közben
             </Link>
+            <AddToShoppingListButton
+              recipeId={detail.id}
+              recipeName={detail.name}
+            />
             <PrintButton />
             <span className="text-xs text-ink-300">
               Utoljára módosítva:{" "}
