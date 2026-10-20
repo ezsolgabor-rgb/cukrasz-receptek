@@ -3,31 +3,33 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function RecipeForm({ categories, units, initial, mode }: any) {
+export function RecipeForm({ categories = [], units = [], initial, mode }: any) {
   const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Alapállapotok
+  // Recept alapadatok
   const [name, setName] = useState(initial?.name || "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId || categories[0]?.id || "");
-  const [baseYieldQty, setBaseYieldQty] = useState(initial?.baseYieldQty || 4);
+  const [baseYieldQty, setBaseYieldQty] = useState<number>(initial?.baseYieldQty || 4);
   const [baseYieldUnitId, setBaseYieldUnitId] = useState(initial?.baseYieldUnitId || units[0]?.id || "");
   
-  // Szövegdobozok nyers tartalma
+  // Nyers bemásolt szövegek
   const [rawIngredients, setRawIngredients] = useState("");
   const [rawSteps, setRawSteps] = useState("");
 
-  // Feldolgozott listák megtekintéshez / szerkesztéshez
+  // Felismert elemek
   const [parsedIngredients, setParsedIngredients] = useState<any[]>([]);
   const [parsedSteps, setParsedSteps] = useState<string[]>([]);
 
-  // Hozzávalók automatikus feldolgozása a szövegdobozból
-  function handleParseIngredients() {
-    const lines = rawIngredients.split("\n").map(l => l.trim()).filter(Boolean);
-    
-    const items = lines.map((line) => {
-      // Egyszerű regex a mennyiség, mértékegység és név kinyerésére
+  // Kezdeti viszonyítási alap a skálázáshoz
+  const initialYieldQty = initial?.baseYieldQty || 4;
+
+  // Hozzávaló felismerő logika
+  function parseIngredients(text: string) {
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    return lines.map((line) => {
+      // Felismerjük a számokat (pl. 500, 2.5, 1/2) a sor elején
       const match = line.match(/^([\d.,\/]+)\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?\s+(.+)$/);
-      
       if (match) {
         const qty = parseFloat(match[1].replace(",", ".")) || 1;
         const unit = match[2] || "";
@@ -38,36 +40,61 @@ export function RecipeForm({ categories, units, initial, mode }: any) {
         return { qty: 1, unit: "", name: line, raw: line };
       }
     });
-
-    setParsedIngredients(items);
   }
 
-  // Lépések feldolgozása a szövegdobozból
-  function handleParseSteps() {
-    const lines = rawSteps.split("\n").map(l => l.trim()).filter(Boolean);
+  // Szöveg változásakor élőben frissítjük a strukturált adatokat
+  function handleIngredientsChange(text: string) {
+    setRawIngredients(text);
+    setParsedIngredients(parseIngredients(text));
+  }
+
+  function handleStepsChange(text: string) {
+    setRawSteps(text);
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
     setParsedSteps(lines);
   }
 
+  // Űrlap beküldése és elmentése az adatbázisba
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
-    // Itt küldhetjük el az adatokat a backendnek / menthetjük el az adatbázisba
+    setIsSaving(true);
+
+    const finalIngredients = parsedIngredients.length > 0 ? parsedIngredients : parseIngredients(rawIngredients);
+    const finalSteps = parsedSteps.length > 0 ? parsedSteps : rawSteps.split("\n").map(l => l.trim()).filter(Boolean);
+
     const payload = {
       name,
       categoryId,
-      baseYieldQty,
+      baseYieldQty: Number(baseYieldQty),
       baseYieldUnitId,
-      ingredients: parsedIngredients,
-      steps: parsedSteps,
+      ingredients: finalIngredients,
+      steps: finalSteps,
     };
 
-    console.log("Mentendő recept adatok:", payload);
-    alert("Recept sikeresen feldolgozva és előkészítve a mentésre!");
+    try {
+      const res = await fetch("/api/receptek", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        throw new Error("Sikertelen mentés");
+      }
+
+      // Mentés után irányítás a receptekhez
+      router.push("/receptek");
+      router.refresh();
+    } catch (err) {
+      alert("Hiba történt a recept mentése során. Kérlek próbáld újra!");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Alapadatok */}
+      {/* Recept alapadatok */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm">
         <div>
           <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Recept címe</label>
@@ -131,32 +158,29 @@ export function RecipeForm({ categories, units, initial, mode }: any) {
         <textarea
           rows={6}
           value={rawIngredients}
-          onChange={(e) => setRawIngredients(e.target.value)}
+          onChange={(e) => handleIngredientsChange(e.target.value)}
           placeholder={"500 g liszt\n2 dl tej\n100 g cukor"}
           className="mt-3 w-full rounded-xl border border-sage-300 bg-white p-4 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 font-mono"
         />
 
-        <button
-          type="button"
-          onClick={handleParseIngredients}
-          className="mt-3 rounded-xl bg-forest-600 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-700 transition"
-        >
-          Hozzávalók felismerése és strukturálása
-        </button>
-
-        {/* Felismert hozzávalók listája */}
+        {/* Élőben felismert és egyenesen arányosan skálázott hozzávalók */}
         {parsedIngredients.length > 0 && (
           <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4">
-            <h3 className="text-sm font-semibold text-ink-800 dark:text-slate-200">Felismerett hozzávalók (ellenőrzéshez):</h3>
+            <h3 className="text-sm font-semibold text-ink-800 dark:text-slate-200">
+              Felismert hozzávalók ({parsedIngredients.length} db) – skálázott mennyiségek:
+            </h3>
             <ul className="mt-2 space-y-1 text-sm text-ink-600 dark:text-slate-400 font-mono">
-              {parsedIngredients.map((item, idx) => (
-                <li key={idx} className="bg-sage-50 dark:bg-slate-800 p-2 rounded-lg flex justify-between">
-                  <span>{item.name}</span>
-                  <span className="font-bold text-forest-700 dark:text-emerald-400">
-                    {item.qty * (baseYieldQty / (initial?.baseYieldQty || baseYieldQty))} {item.unit}
-                  </span>
-                </li>
-              ))}
+              {parsedIngredients.map((item, idx) => {
+                const scaledQty = Number((item.qty * (baseYieldQty / (initialYieldQty || 1))).toFixed(2));
+                return (
+                  <li key={idx} className="bg-sage-50 dark:bg-slate-800 p-2 rounded-lg flex justify-between">
+                    <span>{item.name}</span>
+                    <span className="font-bold text-forest-700 dark:text-emerald-400">
+                      {scaledQty} {item.unit}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
@@ -170,35 +194,10 @@ export function RecipeForm({ categories, units, initial, mode }: any) {
         <textarea
           rows={6}
           value={rawSteps}
-          onChange={(e) => setRawSteps(e.target.value)}
+          onChange={(e) => handleStepsChange(e.target.value)}
           placeholder={"1. A lisztet elkeverjük a margarinnal.\n2. Hozzáadjuk a tejet és simára gyúrjuk.\n3. 180 fokon 25 percig sütjük."}
           className="mt-3 w-full rounded-xl border border-sage-300 bg-white p-4 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
         />
 
-        <button
-          type="button"
-          onClick={handleParseSteps}
-          className="mt-3 rounded-xl bg-forest-600 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-700 transition"
-        >
-          Lépések rögzítése
-        </button>
-
         {parsedSteps.length > 0 && (
-          <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4">
-            <h3 className="text-sm font-semibold text-ink-800 dark:text-slate-200">Rögzített lépések száma: {parsedSteps.length} db</h3>
-          </div>
-        )}
-      </div>
-
-      {/* Mentés gomb */}
-      <div className="flex justify-end gap-3">
-        <button
-          type="submit"
-          className="rounded-xl bg-forest-700 px-6 py-3 text-base font-bold text-white shadow-md hover:bg-forest-800 transition"
-        >
-          Recept mentése a könyvbe 📖
-        </button>
-      </div>
-    </form>
-  );
-}
+          <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4
