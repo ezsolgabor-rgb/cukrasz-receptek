@@ -28,7 +28,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   function parseIngredients(text: string) {
     const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
     return lines.map((line) => {
-      // Felismerjük a számokat (pl. 500, 2.5, 1/2) a sor elején
       const match = line.match(/^([\d.,\/]+)\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?\s+(.+)$/);
       if (match) {
         const qty = parseFloat(match[1].replace(",", ".")) || 1;
@@ -36,13 +35,11 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         const ingredientName = match[3];
         return { qty, unit, name: ingredientName, raw: line };
       } else {
-        // Ha nincs külön szám (pl. "csipet só")
         return { qty: 1, unit: "", name: line, raw: line };
       }
     });
   }
 
-  // Szöveg változásakor élőben frissítjük a strukturált adatokat
   function handleIngredientsChange(text: string) {
     setRawIngredients(text);
     setParsedIngredients(parseIngredients(text));
@@ -54,7 +51,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     setParsedSteps(lines);
   }
 
-  // Űrlap beküldése és elmentése az adatbázisba
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSaving(true);
@@ -82,7 +78,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         throw new Error("Sikertelen mentés");
       }
 
-      // Mentés után irányítás a receptekhez
       router.push("/receptek");
       router.refresh();
     } catch (err) {
@@ -163,7 +158,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
           className="mt-3 w-full rounded-xl border border-sage-300 bg-white p-4 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 font-mono"
         />
 
-        {/* Élőben felismert és egyenesen arányosan skálázott hozzávalók */}
         {parsedIngredients.length > 0 && (
           <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4">
             <h3 className="text-sm font-semibold text-ink-800 dark:text-slate-200">
@@ -200,4 +194,24 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         />
 
         {parsedSteps.length > 0 && (
-          <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4
+          <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4">
+            <h3 className="text-sm font-semibold text-ink-800 dark:text-slate-200">
+              Felismert lépések száma: {parsedSteps.length} db
+            </h3>
+          </div>
+        )}
+      </div>
+
+      {/* Mentés gomb */}
+      <div className="flex justify-end gap-3">
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="rounded-xl bg-forest-700 px-6 py-3 text-base font-bold text-white shadow-md hover:bg-forest-800 transition disabled:opacity-50"
+        >
+          {isSaving ? "Mentés folyamatban..." : "Recept mentése a könyvbe 📖"}
+        </button>
+      </div>
+    </form>
+  );
+}
