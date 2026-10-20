@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { updateCategory } from "@/actions/category";
+import { updateCategory, deleteCategory } from "@/actions/category";
 import { SiteHeader } from "@/components/site-header";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +26,11 @@ export default async function EditCategoryPage({
     await updateCategory(id, formData);
   }
 
+  async function handleDelete() {
+    "use server";
+    await deleteCategory(id);
+  }
+
   return (
     <div className="min-h-dvh bg-sage-50/50 dark:bg-gray-950">
       <SiteHeader />
@@ -41,6 +46,7 @@ export default async function EditCategoryPage({
           Kategória szerkesztése: {category.name}
         </h1>
 
+        {/* Módosító űrlap */}
         <form action={handleUpdate} className="card mt-6 p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-ink-700 dark:text-gray-300">
@@ -81,6 +87,29 @@ export default async function EditCategoryPage({
             </button>
           </div>
         </form>
+
+        {/* Törlő űrlap (külön blokkban a biztonság kedvéért) */}
+        <div className="card mt-6 p-6 border-red-200 bg-red-50/50 dark:border-red-950 dark:bg-red-950/20">
+          <h2 className="text-lg font-medium text-red-800 dark:text-red-400">
+            Veszélyes zóna
+          </h2>
+          <p className="mt-1 text-sm text-red-600 dark:text-red-300">
+            Ha törlöd a kategóriát, azzal eltávolítod a rendszerből.
+          </p>
+          <form action={handleDelete} className="mt-4">
+            <button
+              type="submit"
+              className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50 dark:border-red-900 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50 transition"
+              onClick={(e) => {
+                if (!window.confirm("Biztosan törölni szeretnéd ezt a kategóriát?")) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              Kategória törlése
+            </button>
+          </form>
+        </div>
       </main>
     </div>
   );
