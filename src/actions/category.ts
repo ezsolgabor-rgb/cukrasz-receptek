@@ -1,35 +1,17 @@
 'use server'
 
 import { prisma } from '@/lib/db'
-import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 
 export async function createCategory(formData: FormData) {
   const name = formData.get('name') as string
-  const description = formData.get('description') as string
+  const color = formData.get('color') as string || '#22c55e'
+  const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-')
 
-  if (!name) {
-    throw new Error('A kategória neve kötelező!')
-  }
-
-  const slug = name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-
-  try {
-    await prisma.category.create({
-      data: {
-        name,
-        slug,
-      },
-    })
-  } catch (error) {
-    console.error('Hiba a kategória mentésekor:', error)
-    throw new Error('Nem sikerült létrehozni a kategóriát.')
-  }
+  await prisma.category.create({
+    data: { name, slug, color },
+  })
 
   revalidatePath('/')
   redirect('/')
@@ -37,30 +19,22 @@ export async function createCategory(formData: FormData) {
 
 export async function updateCategory(id: string, formData: FormData) {
   const name = formData.get('name') as string
+  const color = formData.get('color') as string || '#22c55e'
+  const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-')
 
-  if (!name) {
-    throw new Error('A kategória neve kötelező!')
-  }
+  await prisma.category.update({
+    where: { id },
+    data: { name, slug, color },
+  })
 
-  const slug = name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+  revalidatePath('/')
+  redirect('/')
+}
 
-  try {
-    await prisma.category.update({
-      where: { id },
-      data: {
-        name,
-        slug,
-      },
-    })
-  } catch (error) {
-    console.error('Hiba a kategória frissítésekor:', error)
-    throw new Error('Nem sikerült frissíteni a kategóriát.')
-  }
+export async function deleteCategory(id: string) {
+  await prisma.category.delete({
+    where: { id },
+  })
 
   revalidatePath('/')
   redirect('/')
