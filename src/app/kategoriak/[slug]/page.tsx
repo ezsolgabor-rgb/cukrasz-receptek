@@ -1,116 +1,94 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-
-import { RecipeGrid } from "@/components/recipe-grid";
+import Link from "next/link";
+import { prisma } from "@/lib/db";
 import { SiteHeader } from "@/components/site-header";
-import { getCategoryBySlug, listRecipeCards } from "@/lib/recipe-queries";
+import { RecipeCard } from "@/components/recipe-card";
 
 export const dynamic = "force-dynamic";
 
-export default async function CategoryPage({
+export default async function CategoryDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ cimke?: string }>;
 }) {
   const { slug } = await params;
-  const { cimke } = await searchParams;
 
-  const category = await getCategoryBySlug(slug);
-  if (!category) notFound();
+  const category = await prisma.category.findUnique({
+    where: { slug },
+    include: {
+      recipes: {
+        include: {
+          category: true,
+          tags: true,
+          photos: true,
+        },
+      },
+    },
+  });
 
-  const allInCategory = await listRecipeCards({ categorySlug: slug });
-
-  // A címkék a kategórián belüli receptekből jönnek – nincs külön lekérdezés.
-  const tagCounts = new Map<string, number>();
-  for (const recipe of allInCategory) {
-    for (const tag of recipe.tags) {
-      tagCounts.set(tag.name, (tagCounts.get(tag.name) ?? 0) + 1);
-    }
+  if (!category) {
+    notFound();
   }
-  const tags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "hu"));
-
-  const recipes = cimke
-    ? allInCategory.filter((recipe) =>
-        recipe.tags.some((tag) => tag.name === cimke),
-      )
-    : allInCategory;
-
-  const chipClass = (active: boolean) =>
-    `chip border transition-colors ${
-      active
-        ? "border-forest-600 bg-forest-600 text-white"
-        : "border-sage-300 bg-white text-ink-700 hover:border-forest-300"
-    }`;
 
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh bg-sage-50/50 dark:bg-gray-950">
       <SiteHeader />
-
       <main className="mx-auto max-w-6xl px-5 py-8">
-        <Link href="/" className="text-sm text-ink-400 hover:text-forest-600">
-          ← Kategóriák
+        <Link
+          href="/"
+          className="text-sm text-ink-400 hover:text-forest-600 dark:text-gray-400"
+        >
+          ← Vissza a főoldalra
         </Link>
 
-        <header
-          className="mt-4 rounded-2xl border p-5"
-          style={{
-            borderColor: `${category.color}33`,
-            background: `radial-gradient(120% 140% at 8% 0%, ${category.color}1a, transparent 62%)`,
-          }}
-        >
-          <span
-            className="chip"
-            style={{
-              border: `1px solid ${category.color}3d`,
-              color: category.color,
-              background: "rgba(255,255,255,0.7)",
-            }}
-          >
-            Kategória
-          </span>
-          <h1 className="mt-3 font-display text-4xl leading-tight text-ink-900">
-            {category.name}
-          </h1>
-          <p className="mt-2 text-sm text-ink-500">
-            {allInCategory.length} recept ebben a kategóriában
-            {recipes.length !== allInCategory.length && ` · ${recipes.length} találat`}
-          </p>
-        </header>
-
-        {tags.length > 0 && (
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-ink-300">
-              Szűrés
-            </span>
-            <Link href={`/kategoriak/${slug}`} className={chipClass(!cimke)}>
-              Összes
-            </Link>
-            {tags.map(([name, count]) => (
-              <Link
-                key={name}
-                href={`/kategoriak/${slug}?cimke=${encodeURIComponent(name)}`}
-                className={chipClass(cimke === name)}
+        {/* Kategória fejléc kártya */}
+        <div className="card mt-4 p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <span
+                className="chip mb-2"
+                style={{
+                  backgroundColor: category.color ? `${category.color}20` : '#22c55e20',
+                  color: category.color || '#22c55e',
+                }}
               >
-                {name}
-                <span className={cimke === name ? "text-white/70" : "text-ink-300"}>
-                  {count}
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
+                Kategória
+              </span>
+              <h1 className="font-display text-3xl font-bold text-ink-900 dark:text-slate-100">
+                {category.name}
+              </h1>
+              <p className="mt-1 text-sm text-ink-500 dark:text-gray-400">
+                {category.recipes.length} recept ebben a kategóriában
+              </p>
+            </div>
 
-        <div className="mt-6">
-          <RecipeGrid
-            recipes={recipes}
-            emptyMessage={
-              cimke
-                ? `Nincs „${cimke}” címkéjű recept ebben a kategóriában.`
-                : "Ebben a kategóriában még nincs recept. Vegyél fel egyet a + Új recept gombbal."
-            }
-          />
+            {/* Kategória szerkesztése gomb (átvisz az ID-alapú szerkesztőbe) */}
+            <div>
+              <Link
+                href={`/kategoriak/${category.id}/szerkesztes`}
+                className="inline-flex items-center gap-2 rounded-xl border border-sage-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 shadow-sm hover:bg-sage-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 transition"
+              >
+                ✏️ Kategória szerkesztése
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Recept lista */}
+        <div className="mt-8">
+          {category.recipes.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-sage-300 p-8 text-center dark:border-gray-800">
+              <p className="text-sm text-ink-500 dark:text-gray-400">
+                Ebben a kategóriában még nincs recept. Vegyél fel egyet a + Új recept gombbal.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {category.recipes.map((recipe) => (
+                <RecipeCard key={recipe.id} recipe={recipe} />
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
