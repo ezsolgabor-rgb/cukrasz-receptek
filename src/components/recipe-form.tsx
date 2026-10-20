@@ -75,7 +75,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     const finalSteps = parsedSteps.length > 0 ? parsedSteps : rawSteps.split("\n").map(l => l.trim()).filter(Boolean);
 
     const payload = {
-      id: initial?.id || undefined,
+      ...(initial?.id ? { id: initial.id } : {}), // Csak szerkesztéskor küldünk id-t
       name,
       categoryId,
       baseYieldQty: Number(baseYieldQty),
