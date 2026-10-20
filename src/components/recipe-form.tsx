@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { saveRecipe } from "@/app/receptek/actions";
 
 export function RecipeForm({ categories = [], units = [], initial, mode }: any) {
   const router = useRouter();
@@ -58,27 +59,34 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     const finalIngredients = parsedIngredients.length > 0 ? parsedIngredients : parseIngredients(rawIngredients);
     const finalSteps = parsedSteps.length > 0 ? parsedSteps : rawSteps.split("\n").map(l => l.trim()).filter(Boolean);
 
+    // Összeállítjuk az objektumot a repository által elvárt formátumban
     const payload = {
+      id: initial?.id || undefined,
       name,
       categoryId,
       baseYieldQty: Number(baseYieldQty),
       baseYieldUnitId,
-      ingredients: finalIngredients,
-      steps: finalSteps,
+      ingredients: finalIngredients.map((item, index) => ({
+        sortOrder: index,
+        rawText: item.raw,
+        parsedQty: item.qty * (baseYieldQty / (initialYieldQty || 1)),
+        parsedUnitId: baseYieldUnitId, // alapértelmezett vagy felismert
+        ingredientName: item.name,
+      })),
+      steps: finalSteps.map((stepText, index) => ({
+        sortOrder: index,
+        instruction: stepText,
+      })),
     };
 
     try {
-      const res = await fetch("/api/receptek", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const result = await saveRecipe(payload);
 
-      if (!res.ok) {
-        throw new Error("Sikertelen mentés");
+      if (!result.ok) {
+        throw new Error("Sikertelen mentés az adatbázisba");
       }
 
-      router.push("/receptek");
+      router.push(`/receptek/${result.slug}`);
       router.refresh();
     } catch (err) {
       alert("Hiba történt a recept mentése során. Kérlek próbáld újra!");
