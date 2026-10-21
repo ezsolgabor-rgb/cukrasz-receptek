@@ -29,7 +29,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   const [photos, setPhotos] = useState<any[]>(() => {
     if (initial?.photos && initial.photos.length > 0) {
       return initial.photos.map((p: any) => ({
-        id: p.id || generateId(),
+        id: p.id,
         fileName: p.fileName,
         caption: p.caption || "",
         isCover: p.isCover || false,
@@ -43,7 +43,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       return initial.ingredients.map((i: any) => {
         const foundUnit = units.find((u: any) => u.id === i.unitId);
         return {
-          id: i.id || generateId(),
+          id: i.id,
           qty: i.quantity || 1,
           unitName: foundUnit ? (foundUnit.code || foundUnit.name) : (i.note || "g"),
           name: i.name || "",
@@ -51,26 +51,26 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       });
     }
     return [
-      { id: generateId(), qty: 1, unitName: "g", name: "" },
-      { id: generateId(), qty: 1, unitName: "g", name: "" },
-      { id: generateId(), qty: 1, unitName: "g", name: "" },
+      { qty: 1, unitName: "g", name: "" },
+      { qty: 1, unitName: "g", name: "" },
+      { qty: 1, unitName: "g", name: "" },
     ];
   });
 
   const [steps, setSteps] = useState<any[]>(() => {
     if (initial?.steps && initial.steps.length > 0) {
       return initial.steps.map((s: any) => ({
-        id: s.id || generateId(),
+        id: s.id,
         text: typeof s === "string" ? s : s.text,
       }));
     }
-    return [{ id: generateId(), text: "" }];
+    return [{ text: "" }];
   });
 
   const initialYieldQty = initial?.baseYieldQty || 4;
 
   function addIngredientRow() {
-    setIngredients([...ingredients, { id: generateId(), qty: 1, unitName: "g", name: "" }]);
+    setIngredients([...ingredients, { qty: 1, unitName: "g", name: "" }]);
   }
 
   function removeIngredientRow(index: number) {
@@ -78,7 +78,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   }
 
   function addStepRow() {
-    setSteps([...steps, { id: generateId(), text: "" }]);
+    setSteps([...steps, { text: "" }]);
   }
 
   function removeStepRow(index: number) {
@@ -105,7 +105,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
           setPhotos((prev) => [
             ...prev,
             {
-              id: generateId(),
               fileName: data.fileName || data.filename || file.name,
               caption: "",
               isCover: prev.length === 0,
@@ -115,7 +114,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
           setPhotos((prev) => [
             ...prev,
             {
-              id: generateId(),
               fileName: file.name,
               caption: "",
               isCover: prev.length === 0,
@@ -160,7 +158,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         );
 
         return {
-          id: item.id || generateId(),
+          ...(item.id ? { id: item.id } : {}),
           groupName: null,
           name: item.name.trim(),
           quantity: scaledQty,
@@ -172,7 +170,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       });
 
     const payload = {
-      id: initial?.id || generateId(),
+      ...(initial?.id ? { id: initial.id } : {}),
       name: name.trim(),
       categoryId: categoryId || null,
       description: description.trim() || null,
@@ -193,7 +191,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       steps: steps
         .filter((s) => s.text && s.text.trim() !== "")
         .map((s, index) => ({
-          id: s.id || generateId(),
+          ...(s.id ? { id: s.id } : {}),
           stepIndex: index + 1,
           text: s.text.trim(),
           durationMinutes: null,
@@ -202,7 +200,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
           photoFileName: null,
         })),
       photos: photos.map((p) => ({
-        id: p.id || generateId(),
+        ...(p.id ? { id: p.id } : {}),
         fileName: p.fileName,
         caption: p.caption || null,
         isCover: Boolean(p.isCover),
@@ -318,7 +316,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         {photos.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
             {photos.map((photo, index) => (
-              <div key={photo.id} className="relative group rounded-xl overflow-hidden border border-sage-200 dark:border-slate-700 p-2 bg-sage-50 dark:bg-slate-800">
+              <div key={index} className="relative group rounded-xl overflow-hidden border border-sage-200 dark:border-slate-700 p-2 bg-sage-50 dark:bg-slate-800">
                 <div className="text-xs truncate font-semibold text-ink-700 dark:text-slate-200 mb-1">
                   {photo.fileName}
                 </div>
@@ -382,7 +380,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         <div className="space-y-3">
           {ingredients.map((item, index) => {
             return (
-              <div key={item.id} className="flex gap-2 items-center bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
+              <div key={index} className="flex gap-2 items-center bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
                 <input
                   type="number"
                   step="any"
@@ -452,7 +450,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
 
         <div className="space-y-3">
           {steps.map((step, index) => (
-            <div key={step.id} className="flex gap-2 items-start bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
+            <div key={index} className="flex gap-2 items-start bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
               <span className="text-sm font-bold text-ink-500 pt-2">{index + 1}.</span>
               <textarea
                 rows={2}
