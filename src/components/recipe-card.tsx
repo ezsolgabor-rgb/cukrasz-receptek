@@ -15,7 +15,7 @@ export type RecipeCardData = {
   difficulty: number | null;
   isFavorite: boolean;
   category: { name: string; color: string; icon: string | null } | null;
-  baseYieldUnit: { code: string; name: string };
+  baseYieldUnit: { code: string; name: string } | null; // Biztonságosan null-osítható
   tags: { id: string; name: string }[];
   ingredients: { name: string; allergenNote: string | null }[];
   coverPhoto: { fileName: string; caption: string | null } | null;
@@ -62,8 +62,7 @@ export function RecipeCard({ recipe }: { recipe: RecipeCardData }) {
     ),
   ].slice(0, 3);
 
-  // Tortáknál a szeletszám a mérvadó, nem az „adag”.
-  const yieldLabel = recipe.baseYieldUnit.code === "szelet" ? "Szelet" : "Alapadag";
+  const unitCode = recipe.baseYieldUnit?.code ?? "";
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-xl bg-white dark:bg-slate-800 dark:border dark:border-slate-700">
@@ -134,7 +133,7 @@ export function RecipeCard({ recipe }: { recipe: RecipeCardData }) {
         <div className="mt-auto flex flex-wrap gap-2 border-t border-dashed border-sage-300 pt-3">
           <div className="flex items-center gap-1 rounded-full bg-sage-100 dark:bg-slate-700 px-3 py-1 text-sm text-ink-700 dark:text-slate-100">
             <span className="text-sage-500">🍽️</span>
-            {`${formatNumber(recipe.baseYieldQty, 2)} ${recipe.baseYieldUnit.code}`}
+            {`${formatNumber(recipe.baseYieldQty, 2)} ${unitCode}`.trim()}
           </div>
           
           {totalMinutes && (

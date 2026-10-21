@@ -21,6 +21,7 @@ export default async function CategoryDetailPage({
           category: true,
           tags: true,
           photos: true,
+          baseYieldUnit: true, // 🟢 Hozzáadva: a mértékegység reláció betöltése
         },
       },
     },
@@ -62,7 +63,7 @@ export default async function CategoryDetailPage({
               </p>
             </div>
 
-            {/* Kategória szerkesztése gomb (átvisz az ID-alapú szerkesztőbe) */}
+            {/* Kategória szerkesztése gomb */}
             <div>
               <Link
                 href={`/kategoriak/${category.id}/szerkesztes`}
