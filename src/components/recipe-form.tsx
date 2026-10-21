@@ -185,4 +185,8 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       usualYieldQty: null,
       usualYieldNote: null,
       tagNames: [],
-      ingredients
+      ingredients: mappedIngredients,
+      steps: steps
+        .filter((s) => s.text && s.text.trim() !== "")
+        .map((s, index) => ({
+          ...(s.id ? { id
