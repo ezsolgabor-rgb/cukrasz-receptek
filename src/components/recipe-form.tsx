@@ -25,21 +25,46 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   // Kezdeti viszonyítási alap a skálázáshoz
   const initialYieldQty = initial?.baseYieldQty || 4;
 
-  // Finomhangolt hozzávaló értelmező
+  // Intelligens többsoros és egysoros hozzávaló értelmező
   function parseIngredients(text: string) {
-    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-    
-    return lines.map((line) => {
-      // Megpróbáljuk felosztani: [mennyiség] [mértékegység] [hozzávaló neve]
-      // Pl: "15 g szárított vargánya", "2 ek olívaolaj", "1 fej salottahagyma", "3 gerezd fokhagyma", "só, bors"
-      const match = line.match(/^([\d.,\/]+)\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?\s*(.*)$/);
-      
+    const rawLines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    if (rawLines.length === 0) return [];
+
+    // 1. Összevonjuk a külön sorba került mennyiségeket és neveket
+    const mergedBlocks: string[] = [];
+    let currentBlock = "";
+
+    for (let i = 0; i < rawLines.length; i++) {
+      const line = rawLines[i];
+      // Ha a sor kizárólag számmal vagy szám + mértékegységgel kezdődik/áll (pl. "15 g", "100 ml", "1 fej")
+      const isNumberOrQtyOnly = /^[\d.,\/]+\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?$/.test(line);
+
+      if (isNumberOrQtyOnly && currentBlock) {
+        mergedBlocks.push(currentBlock);
+        currentBlock = line;
+      } else if (isNumberOrQtyOnly && !currentBlock) {
+        currentBlock = line;
+      } else {
+        if (currentBlock) {
+          currentBlock += " " + line;
+        } else {
+          currentBlock = line;
+        }
+      }
+    }
+    if (currentBlock) mergedBlocks.push(currentBlock);
+
+    // 2. Blokkok strukturálása
+    return mergedBlocks.map((block) => {
+      // Regex minta: [Mennyiség] [Lehetséges Mértékegység] [Név / Kiegészítés]
+      const match = block.match(/^([\d.,\/]+)\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?\s*(.*)$/);
+
       if (match && match[1]) {
         const qty = parseFloat(match[1].replace(",", ".")) || 1;
         const possibleUnit = (match[2] || "").trim().toLowerCase();
-        let ingredientName = (match[3] || "").trim();
+        let restName = (match[3] || "").trim();
 
-        // Ha a match[2] nem egy ismert mértékegység, akkor az már a hozzávaló neve!
+        // Keresünk egyező mértékegységet az adatbázis egységek között
         const foundUnit = units.find((u: any) => 
           u.code?.toLowerCase() === possibleUnit || 
           u.name?.toLowerCase() === possibleUnit
@@ -50,18 +75,19 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
             qty,
             unitId: foundUnit.id,
             unitName: foundUnit.code || foundUnit.name,
-            name: ingredientName || possibleUnit,
-            raw: line,
+            name: restName || possibleUnit,
+            raw: block,
           };
         } else {
-          // Ha nem találtunk mértékegységet, a lehetséges mértékegység szót visszatesszük a névhez
-          const fullName = possibleUnit ? `${possibleUnit} ${ingredientName}`.trim() : ingredientName;
+          // Ha nem találtunk pontos DB mértékegységet (pl. "fej", "gerezd"), 
+          // NEM erőltetjük rá a grammot (g), hanem a nevében tartjuk meg!
+          const fullName = possibleUnit ? `${possibleUnit} ${restName}`.trim() : restName;
           return {
             qty,
-            unitId: null, // Nincs mértékegység (pl. 1 fej, 2 db)
+            unitId: null, // null, így nem lesz automatikusan "g"
             unitName: "",
-            name: fullName || line,
-            raw: line,
+            name: fullName || block,
+            raw: block,
           };
         }
       } else {
@@ -70,8 +96,8 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
           qty: 1, 
           unitId: null, 
           unitName: "",
-          name: line, 
-          raw: line 
+          name: block, 
+          raw: block 
         };
       }
     });
@@ -117,7 +143,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         groupName: null,
         name: item.name.trim(),
         quantity: Number((item.qty * (baseYieldQty / (initialYieldQty || 1))).toFixed(2)),
-        unitId: item.unitId, // Pontos mértékegység ID vagy null
+        unitId: item.unitId, // Csak akkor kap ID-t, ha tényleg egyezik a DB mértékegységgel, különben null
         note: null,
         scalable: true,
         componentRecipeId: null,
@@ -212,14 +238,14 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm">
         <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Hozzávalók bemásolása</h2>
         <p className="text-xs text-ink-500 mt-1">
-          Másold be ide a hozzávalókat soronként (pl. 500 g liszt, 2 dl tej, 1 fej hagymás):
+          Másold be ide a hozzávalókat. Az egymás alatt lévő mennyiségeket és megnevezéseket a program automatikusan összevonja!
         </p>
         
         <textarea
-          rows={8}
+          rows={10}
           value={rawIngredients}
           onChange={(e) => handleIngredientsChange(e.target.value)}
-          placeholder={"15 g szárított vargánya gomba\n300 ml forró víz\n1 fej salottahagyma\n2 gerezd fokhagyma\n2 ek olívaolaj\nsó, bors"}
+          placeholder={"15 g\nszárított vargánya gomba\n\n100 ml\nforró víz\n\n1 fej\nsalottahagyma\n(kisebb)\n\n1 gerezd\nfokhagyma"}
           className="mt-3 w-full rounded-xl border border-sage-300 bg-white p-4 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 font-mono"
         />
 
