@@ -25,30 +25,51 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   // Kezdeti viszonyítási alap a skálázáshoz
   const initialYieldQty = initial?.baseYieldQty || 4;
 
-  // Hozzávaló felismerő logika
+  // Finomhangolt hozzávaló értelmező
   function parseIngredients(text: string) {
     const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    
     return lines.map((line) => {
-      const match = line.match(/^([\d.,\/]+)\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?\s+(.+)$/);
-      if (match) {
+      // Megpróbáljuk felosztani: [mennyiség] [mértékegység] [hozzávaló neve]
+      // Pl: "15 g szárított vargánya", "2 ek olívaolaj", "1 fej salottahagyma", "3 gerezd fokhagyma", "só, bors"
+      const match = line.match(/^([\d.,\/]+)\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?\s*(.*)$/);
+      
+      if (match && match[1]) {
         const qty = parseFloat(match[1].replace(",", ".")) || 1;
-        const unitStr = (match[2] || "").toLowerCase();
-        const ingredientName = match[3];
+        const possibleUnit = (match[2] || "").trim().toLowerCase();
+        let ingredientName = (match[3] || "").trim();
 
+        // Ha a match[2] nem egy ismert mértékegység, akkor az már a hozzávaló neve!
         const foundUnit = units.find((u: any) => 
-          u.code?.toLowerCase() === unitStr || u.name?.toLowerCase() === unitStr
+          u.code?.toLowerCase() === possibleUnit || 
+          u.name?.toLowerCase() === possibleUnit
         );
 
-        return { 
-          qty, 
-          unitId: foundUnit ? foundUnit.id : (units[0]?.id || null),
-          name: ingredientName, 
-          raw: line 
-        };
+        if (foundUnit) {
+          return {
+            qty,
+            unitId: foundUnit.id,
+            unitName: foundUnit.code || foundUnit.name,
+            name: ingredientName || possibleUnit,
+            raw: line,
+          };
+        } else {
+          // Ha nem találtunk mértékegységet, a lehetséges mértékegység szót visszatesszük a névhez
+          const fullName = possibleUnit ? `${possibleUnit} ${ingredientName}`.trim() : ingredientName;
+          return {
+            qty,
+            unitId: null, // Nincs mértékegység (pl. 1 fej, 2 db)
+            unitName: "",
+            name: fullName || line,
+            raw: line,
+          };
+        }
       } else {
+        // Ha nincs szám az elején (pl. "só, bors ízlés szerint")
         return { 
           qty: 1, 
-          unitId: units[0]?.id || null, 
+          unitId: null, 
+          unitName: "",
           name: line, 
           raw: line 
         };
@@ -74,9 +95,8 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     const finalIngredients = parsedIngredients.length > 0 ? parsedIngredients : parseIngredients(rawIngredients);
     const finalSteps = parsedSteps.length > 0 ? parsedSteps : rawSteps.split("\n").map(l => l.trim()).filter(Boolean);
 
-    // Payload összeállítása pontosan a recipeInput Zod séma alapján (minden mező kötelezően szerepel)
     const payload = {
-      id: initial?.id || null, // Új receptnél null, szerkesztésnél az ID string
+      id: initial?.id || null,
       name: name.trim(),
       categoryId: categoryId || null,
       description: null,
@@ -86,7 +106,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       prepMinutes: null,
       bakeMinutes: null,
       bakeTemperatureC: null,
-      difficulty: 3, // Zod szerint 1 és 5 közötti egész szám
+      difficulty: 3,
       source: null,
       notes: null,
       isFavorite: false,
@@ -97,7 +117,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         groupName: null,
         name: item.name.trim(),
         quantity: Number((item.qty * (baseYieldQty / (initialYieldQty || 1))).toFixed(2)),
-        unitId: item.unitId,
+        unitId: item.unitId, // Pontos mértékegység ID vagy null
         note: null,
         scalable: true,
         componentRecipeId: null,
@@ -191,20 +211,22 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       {/* 1. Szövegdoboz: Hozzávalók */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm">
         <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Hozzávalók bemásolása</h2>
-        <p className="text-xs text-ink-500 mt-1">Másold be ide a hozzávalókat soronként (pl. 500 g liszt, 2 dl tej):</p>
+        <p className="text-xs text-ink-500 mt-1">
+          Másold be ide a hozzávalókat soronként (pl. 500 g liszt, 2 dl tej, 1 fej hagymás):
+        </p>
         
         <textarea
-          rows={6}
+          rows={8}
           value={rawIngredients}
           onChange={(e) => handleIngredientsChange(e.target.value)}
-          placeholder={"500 g liszt\n2 dl tej\n100 g cukor"}
+          placeholder={"15 g szárított vargánya gomba\n300 ml forró víz\n1 fej salottahagyma\n2 gerezd fokhagyma\n2 ek olívaolaj\nsó, bors"}
           className="mt-3 w-full rounded-xl border border-sage-300 bg-white p-4 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 font-mono"
         />
 
         {parsedIngredients.length > 0 && (
           <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4">
             <h3 className="text-sm font-semibold text-ink-800 dark:text-slate-200">
-              Felismert hozzávalók ({parsedIngredients.length} db) – skálázott mennyiségek:
+              Felismert hozzávalók előnézete ({parsedIngredients.length} db):
             </h3>
             <ul className="mt-2 space-y-1 text-sm text-ink-600 dark:text-slate-400 font-mono">
               {parsedIngredients.map((item, idx) => {
@@ -213,7 +235,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
                   <li key={idx} className="bg-sage-50 dark:bg-slate-800 p-2 rounded-lg flex justify-between">
                     <span>{item.name}</span>
                     <span className="font-bold text-forest-700 dark:text-emerald-400">
-                      {scaledQty}
+                      {scaledQty} {item.unitName}
                     </span>
                   </li>
                 );
@@ -232,7 +254,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
           rows={6}
           value={rawSteps}
           onChange={(e) => handleStepsChange(e.target.value)}
-          placeholder={"1. A lisztet elkeverjük a margarinnal.\n2. Hozzáadjuk a tejet és simára gyúrjuk.\n3. 180 fokon 25 percig sütjük."}
+          placeholder={"1. A vargányát forró vízbe áztatjuk.\n2. A salottahagymát finomra vágjuk..."}
           className="mt-3 w-full rounded-xl border border-sage-300 bg-white p-4 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
         />
 
