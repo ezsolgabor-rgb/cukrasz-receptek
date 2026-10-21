@@ -159,10 +159,11 @@ export default async function RecipePage({
           <hr className="rule-dashed" />
         </section>
 
-        {detail.yieldNote && (
+        {detail.baseYieldQty && (
           <p className="mt-4 text-sm text-ink-400">
             Alapadag: {formatNumber(detail.baseYieldQty, 2)}{" "}
-            {detail.baseYieldUnit.code} · {detail.yieldNote}
+            {detail.baseYieldUnit?.code || ""}{" "}
+            {detail.yieldNote ? `· ${detail.yieldNote}` : ""}
           </p>
         )}
 
