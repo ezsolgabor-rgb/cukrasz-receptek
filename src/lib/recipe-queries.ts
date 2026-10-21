@@ -79,10 +79,12 @@ function toCard(row: RecipeRow): RecipeCardData {
           icon: row.category.icon,
         }
       : null,
-    baseYieldUnit: {
-      code: row.baseYieldUnit.code,
-      name: row.baseYieldUnit.name,
-    },
+    baseYieldUnit: row.baseYieldUnit
+      ? {
+          code: row.baseYieldUnit.code,
+          name: row.baseYieldUnit.name,
+        }
+      : null,
     tags: row.tags.map((tag) => ({ id: tag.id, name: tag.name })),
     ingredients: row.ingredients.map((line) => ({
       name: line.name,
