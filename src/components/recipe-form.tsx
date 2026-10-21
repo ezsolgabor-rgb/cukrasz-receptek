@@ -13,15 +13,35 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   const [categoryId, setCategoryId] = useState(initial?.categoryId || categories[0]?.id || null);
   const [baseYieldQty, setBaseYieldQty] = useState<number>(initial?.baseYieldQty || 4);
   const [baseYieldUnitId, setBaseYieldUnitId] = useState(initial?.baseYieldUnitId || units[0]?.id || "");
-  
-  // Hozzávalók inicializálása szerkesztés és új recept esetén is
+  const [description, setDescription] = useState(initial?.description || "");
+  const [prepMinutes, setPrepMinutes] = useState<number | "">(initial?.prepMinutes ?? "");
+  const [bakeMinutes, setBakeMinutes] = useState<number | "">(initial?.bakeMinutes ?? "");
+  const [bakeTemperatureC, setBakeTemperatureC] = useState<number | "">(initial?.bakeTemperatureC ?? "");
+  const [difficulty, setDifficulty] = useState<number>(initial?.difficulty || 3);
+  const [isFavorite, setIsFavorite] = useState<boolean>(initial?.isFavorite || false);
+
+  // Kép feltöltés kezelése
+  const [photos, setPhotos] = useState<any[]>(() => {
+    if (initial?.photos && initial.photos.length > 0) {
+      return initial.photos.map((p: any) => ({
+        id: p.id,
+        fileName: p.fileName,
+        caption: p.caption || "",
+        isCover: p.isCover || false,
+      }));
+    }
+    return [];
+  });
+
+  // Hozzávalók inicializálása
   const [ingredients, setIngredients] = useState<any[]>(() => {
     if (initial?.ingredients && initial.ingredients.length > 0) {
       return initial.ingredients.map((i: any) => {
         const foundUnit = units.find((u: any) => u.id === i.unitId);
         return {
+          id: i.id || undefined,
           qty: i.quantity || 1,
-          unitName: foundUnit ? (foundUnit.code || foundUnit.name) : "g",
+          unitName: foundUnit ? (foundUnit.code || foundUnit.name) : (i.note || "g"),
           name: i.name || "",
         };
       });
@@ -34,11 +54,14 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   });
 
   // Elkészítési lépések inicializálása
-  const [steps, setSteps] = useState<string[]>(() => {
+  const [steps, setSteps] = useState<any[]>(() => {
     if (initial?.steps && initial.steps.length > 0) {
-      return initial.steps.map((s: any) => s.text);
+      return initial.steps.map((s: any) => ({
+        id: s.id || undefined,
+        text: typeof s === "string" ? s : s.text,
+      }));
     }
-    return [""];
+    return [{ text: "" }];
   });
 
   const initialYieldQty = initial?.baseYieldQty || 4;
@@ -52,11 +75,71 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   }
 
   function addStepRow() {
-    setSteps([...steps, ""]);
+    setSteps([...steps, { text: "" }]);
   }
 
   function removeStepRow(index: number) {
     setSteps(steps.filter((_, i) => i !== index));
+  }
+
+  // Fájlfeltöltés kezelő (Kép hozzáadása)
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setPhotos((prev) => [
+            ...prev,
+            {
+              fileName: data.fileName || data.filename || file.name,
+              caption: "",
+              isCover: prev.length === 0, // Az első feltöltött kép automatikusan a borítókép
+            },
+          ]);
+        } else {
+          // Ha az API nem elérhető, helyi nevet használunk
+          setPhotos((prev) => [
+            ...prev,
+            {
+              fileName: file.name,
+              caption: "",
+              isCover: prev.length === 0,
+            },
+          ]);
+        }
+      } catch (err) {
+        console.error("Kép feltöltési hiba:", err);
+      }
+    }
+  }
+
+  function removePhoto(index: number) {
+    const newPhotos = photos.filter((_, i) => i !== index);
+    if (photos[index]?.isCover && newPhotos.length > 0) {
+      newPhotos[0].isCover = true;
+    }
+    setPhotos(newPhotos);
+  }
+
+  function setCoverPhoto(index: number) {
+    setPhotos(
+      photos.map((p, i) => ({
+        ...p,
+        isCover: i === index,
+      }))
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -64,7 +147,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     setIsSaving(true);
 
     const mappedIngredients = ingredients
-      .filter((i) => i.name.trim() !== "")
+      .filter((i) => i.name && i.name.trim() !== "")
       .map((item) => {
         const scaledQty = Number((Number(item.qty) * (baseYieldQty / (initialYieldQty || 1))).toFixed(2));
         const matchedUnit = units.find(
@@ -74,6 +157,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         );
 
         return {
+          ...(item.id ? { id: item.id } : {}),
           groupName: null,
           name: item.name.trim(),
           quantity: scaledQty,
@@ -88,38 +172,46 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       ...(initial?.id ? { id: initial.id } : {}),
       name: name.trim(),
       categoryId: categoryId || null,
-      description: null,
+      description: description.trim() || null,
       baseYieldQty: Number(baseYieldQty),
-      baseYieldUnitId,
+      baseYieldUnitId: baseYieldUnitId || units[0]?.id || null,
       yieldNote: null,
-      prepMinutes: null,
-      bakeMinutes: null,
-      bakeTemperatureC: null,
-      difficulty: 3,
+      prepMinutes: prepMinutes !== "" ? Number(prepMinutes) : null,
+      bakeMinutes: bakeMinutes !== "" ? Number(bakeMinutes) : null,
+      bakeTemperatureC: bakeTemperatureC !== "" ? Number(bakeTemperatureC) : null,
+      difficulty: Number(difficulty),
       source: null,
       notes: null,
-      isFavorite: false,
+      isFavorite,
       usualYieldQty: null,
       usualYieldNote: null,
       tagNames: [],
       ingredients: mappedIngredients,
       steps: steps
-        .filter((s) => s.trim() !== "")
-        .map((stepText) => ({
-          text: stepText.trim(),
+        .filter((s) => s.text && s.text.trim() !== "")
+        .map((s, index) => ({
+          ...(s.id ? { id: s.id } : {}),
+          stepIndex: index + 1,
+          text: s.text.trim(),
           durationMinutes: null,
           temperatureC: null,
           note: null,
           photoFileName: null,
         })),
+      photos: photos.map((p) => ({
+        ...(p.id ? { id: p.id } : {}),
+        fileName: p.fileName,
+        caption: p.caption || null,
+        isCover: Boolean(p.isCover),
+      })),
     };
 
     try {
       const result = await saveRecipe(payload);
 
-      if (!result.ok) {
-        console.error("Mentési hibák:", result.errors);
-        alert("Mentési hiba: " + (result.errors?.join(", ") || "Ismeretlen hiba"));
+      if (!result?.ok) {
+        console.error("Mentési hibák:", result?.errors);
+        alert("Mentési hiba: " + (result?.errors?.join(", ") || "A megadott adatok érvénytelenek."));
         return;
       }
 
@@ -137,8 +229,8 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Recept alapadatok */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Recept címe</label>
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Recept címe *</label>
           <input
             type="text"
             required
@@ -164,189 +256,44 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Alapadag / Mennyiség</label>
-          <input
-            type="number"
-            step="any"
-            value={baseYieldQty}
-            onChange={(e) => setBaseYieldQty(parseFloat(e.target.value) || 1)}
-            className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Alapadag</label>
+            <input
+              type="number"
+              step="any"
+              value={baseYieldQty}
+              onChange={(e) => setBaseYieldQty(parseFloat(e.target.value) || 1)}
+              className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Mértékegység</label>
+            <select
+              value={baseYieldUnitId}
+              onChange={(e) => setBaseYieldUnitId(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+            >
+              {units.map((u: any) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.code})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Rövid leírás / megjegyzés</label>
+          <textarea
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Egy rövid összefoglaló a receptről..."
+            className="mt-1 w-full rounded-xl border border-sage-300 bg-white p-3 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
           />
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Adag mértékegysége</label>
-          <select
-            value={baseYieldUnitId}
-            onChange={(e) => setBaseYieldUnitId(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
-          >
-            {units.map((u: any) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.code})
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
-      {/* Hozzávalók táblázatos / soronkénti nézete */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Hozzávalók</h2>
-            <p className="text-xs text-ink-500 mt-1">Írd be szabadon vagy válaszd ki a mértékegységet (pl. g, ml, gerezd, ág, ek, tk):</p>
-          </div>
-          <button
-            type="button"
-            onClick={addIngredientRow}
-            className="rounded-xl bg-forest-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-forest-700 transition"
-          >
-            + Új hozzávaló
-          </button>
-        </div>
-
-        {/* Gyakori mértékegység ajánlások listája */}
-        <datalist id="unit-options">
-          {units.map((u: any) => (
-            <option key={u.id} value={u.code || u.name} />
-          ))}
-          <option value="g" />
-          <option value="kg" />
-          <option value="ml" />
-          <option value="dl" />
-          <option value="l" />
-          <option value="ek" />
-          <option value="tk" />
-          <option value="gerezd" />
-          <option value="ág" />
-          <option value="fej" />
-          <option value="db" />
-          <option value="ízlés szerint" />
-          <option value="csipet" />
-        </datalist>
-
-        <div className="space-y-3">
-          {ingredients.map((item, index) => {
-            const scaledQty = Number((Number(item.qty) * (baseYieldQty / (initialYieldQty || 1))).toFixed(2));
-            return (
-              <div key={index} className="flex gap-2 items-center bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
-                {/* Mennyiség */}
-                <input
-                  type="number"
-                  step="any"
-                  value={item.qty}
-                  onChange={(e) => {
-                    const updated = [...ingredients];
-                    updated[index].qty = e.target.value;
-                    setIngredients(updated);
-                  }}
-                  placeholder="Mennyiség"
-                  className="w-24 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
-                />
-
-                {/* Szabadon szerkeszthető szöveges mértékegység mező */}
-                <input
-                  type="text"
-                  list="unit-options"
-                  value={item.unitName}
-                  onChange={(e) => {
-                    const updated = [...ingredients];
-                    updated[index].unitName = e.target.value;
-                    setIngredients(updated);
-                  }}
-                  placeholder="Mértékegység"
-                  className="w-32 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
-                />
-
-                {/* Hozzávaló neve */}
-                <input
-                  type="text"
-                  value={item.name}
-                  onChange={(e) => {
-                    const updated = [...ingredients];
-                    updated[index].name = e.target.value;
-                    setIngredients(updated);
-                  }}
-                  placeholder="Hozzávaló neve"
-                  className="flex-1 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
-                />
-
-                {/* Élő skálázott érték */}
-                <span className="text-xs text-forest-700 dark:text-emerald-400 font-mono w-20 text-right hidden sm:inline">
-                  (= {scaledQty})
-                </span>
-
-                {/* Törlés gomb */}
-                <button
-                  type="button"
-                  onClick={() => removeIngredientRow(index)}
-                  className="text-red-500 hover:text-red-700 px-2 py-1 font-bold"
-                  title="Sor törlése"
-                >
-                  ✕
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Elkészítési lépések */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Elkészítési lépések</h2>
-            <p className="text-xs text-ink-500 mt-1">Add meg a recept lépéseit soronként:</p>
-          </div>
-          <button
-            type="button"
-            onClick={addStepRow}
-            className="rounded-xl bg-forest-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-forest-700 transition"
-          >
-            + Új lépés
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {steps.map((stepText, index) => (
-            <div key={index} className="flex gap-2 items-start bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
-              <span className="text-sm font-bold text-ink-500 pt-2">{index + 1}.</span>
-              <textarea
-                rows={2}
-                value={stepText}
-                onChange={(e) => {
-                  const updated = [...steps];
-                  updated[index] = e.target.value;
-                  setSteps(updated);
-                }}
-                placeholder="Írd ide a lépés leírását..."
-                className="flex-1 rounded-lg border border-sage-300 bg-white p-2.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
-              />
-              <button
-                type="button"
-                onClick={() => removeStepRow(index)}
-                className="text-red-500 hover:text-red-700 px-2 py-1 font-bold pt-2"
-                title="Lépés törlése"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Mentés gomb */}
-      <div className="flex justify-end gap-3">
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="rounded-xl bg-forest-700 px-6 py-3 text-base font-bold text-white shadow-md hover:bg-forest-800 transition disabled:opacity-50"
-        >
-          {isSaving ? "Mentés folyamatban..." : "Recept mentése a könyvbe 📖"}
-        </button>
-      </div>
-    </form>
-  );
-}
+      {/* Képfeltöltés szekció */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4
