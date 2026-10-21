@@ -14,44 +14,40 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   const [baseYieldQty, setBaseYieldQty] = useState<number>(initial?.baseYieldQty || 4);
   const [baseYieldUnitId, setBaseYieldUnitId] = useState(initial?.baseYieldUnitId || units[0]?.id || "");
   
-  // Hozzávalók listája strukturált formában (táblázat / sorok)
+  // Hozzávalók listája (ahol a mértékegység már szabadon írható vagy választható)
   const [ingredients, setIngredients] = useState<any[]>(
     initial?.ingredients?.length > 0
       ? initial.ingredients.map((i: any) => ({
           qty: i.quantity || 1,
-          unitId: i.unitId || units[0]?.id || "",
+          unitName: units.find((u: any) => u.id === i.unitId)?.code || units[0]?.code || "g",
           name: i.name || "",
         }))
       : [
-          { qty: 1, unitId: units[0]?.id || "", name: "" },
-          { qty: 1, unitId: units[0]?.id || "", name: "" },
-          { qty: 1, unitId: units[0]?.id || "", name: "" },
+          { qty: 1, unitName: "g", name: "" },
+          { qty: 1, unitName: "g", name: "" },
+          { qty: 1, unitName: "g", name: "" },
         ]
   );
 
-  // Elkészítési lépések (soronként)
+  // Elkészítési lépések
   const [steps, setSteps] = useState<string[]>(
     initial?.steps?.length > 0 ? initial.steps.map((s: any) => s.text) : [""]
   );
 
   const initialYieldQty = initial?.baseYieldQty || 4;
 
-  // Hozzávaló sor hozzáadása
   function addIngredientRow() {
-    setIngredients([...ingredients, { qty: 1, unitId: units[0]?.id || "", name: "" }]);
+    setIngredients([...ingredients, { qty: 1, unitName: units[0]?.code || "g", name: "" }]);
   }
 
-  // Hozzávaló sor törlése
   function removeIngredientRow(index: number) {
     setIngredients(ingredients.filter((_, i) => i !== index));
   }
 
-  // Lépés sor hozzáadása
   function addStepRow() {
     setSteps([...steps, ""]);
   }
 
-  // Lépés sor törlése
   function removeStepRow(index: number) {
     setSteps(steps.filter((_, i) => i !== index));
   }
@@ -59,6 +55,25 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSaving(true);
+
+    // Itt leképezzük a szabadon beírt unitName-et a létező unitId-ra, 
+    // vagy ha egyedi (pl. gerezd, ág), akkor a nevébe/megjegyzésbe ágyazzuk, hogy a Zod séma ne dobjon hibát.
+    const mappedIngredients = ingredients
+      .filter((i) => i.name.trim() !== "")
+      .map((item) => {
+        const scaledQty = Number((Number(item.qty) * (baseYieldQty / (initialYieldQty || 1))).toFixed(2));
+        const matchedUnit = units.find((u: any) => u.code.toLowerCase() === item.unitName.toLowerCase() || u.name.toLowerCase() === item.unitName.toLowerCase());
+
+        return {
+          groupName: null,
+          name: matchedUnit ? item.name.trim() : `${item.unitName} ${item.name}`.trim(), // Ha egyedi (pl. gerezd), bekerül a névbe
+          quantity: scaledQty,
+          unitId: matchedUnit ? matchedUnit.id : (units[0]?.id || null), // Ha egyedi, az alapértelmezett unitId-t kapja, de a szöveg megmarad a névben
+          note: null,
+          scalable: true,
+          componentRecipeId: null,
+        };
+      });
 
     const payload = {
       ...(initial?.id ? { id: initial.id } : {}),
@@ -78,17 +93,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       usualYieldQty: null,
       usualYieldNote: null,
       tagNames: [],
-      ingredients: ingredients
-        .filter((i) => i.name.trim() !== "")
-        .map((item) => ({
-          groupName: null,
-          name: item.name.trim(),
-          quantity: Number((Number(item.qty) * (baseYieldQty / (initialYieldQty || 1))).toFixed(2)),
-          unitId: item.unitId || null,
-          note: null,
-          scalable: true,
-          componentRecipeId: null,
-        })),
+      ingredients: mappedIngredients,
       steps: steps
         .filter((s) => s.trim() !== "")
         .map((stepText) => ({
@@ -162,7 +167,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Adag mértékegysége (pl. adag, szelet)</label>
+          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Adag mértékegysége</label>
           <select
             value={baseYieldUnitId}
             onChange={(e) => setBaseYieldUnitId(e.target.value)}
@@ -177,12 +182,12 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         </div>
       </div>
 
-      {/* Hozzávalók Táblázat / Sorok */}
+      {/* Hozzávalók táblázatos / soronkénti nézete */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
         <div className="flex justify-between items-center">
           <div>
             <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Hozzávalók</h2>
-            <p className="text-xs text-ink-500 mt-1">Add meg a hozzávalókat soronként, pontos mennyiséggel és mértékegységgel:</p>
+            <p className="text-xs text-ink-500 mt-1">Válassz mértékegységet a listából, vagy írd be szabadon (pl. gerezd, ág):</p>
           </div>
           <button
             type="button"
@@ -192,6 +197,19 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
             + Új hozzávaló
           </button>
         </div>
+
+        {/* Datalist a választható mértékegységekhez */}
+        <datalist id="available-units">
+          {units.map((u: any) => (
+            <option key={u.id} value={u.code} />
+          ))}
+          <option value="gerezd" />
+          <option value="ág" />
+          <option value="ízlés szerint" />
+          <option value="fej" />
+          <option value="ek" />
+          <option value="tk" />
+        </datalist>
 
         <div className="space-y-3">
           {ingredients.map((item, index) => {
@@ -212,23 +230,19 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
                   className="w-24 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
                 />
 
-                {/* Mértékegység */}
-                <select
-                  value={item.unitId}
+                {/* Szabadon írható / választható mértékegység mező */}
+                <input
+                  type="text"
+                  list="available-units"
+                  value={item.unitName}
                   onChange={(e) => {
                     const updated = [...ingredients];
-                    updated[index].unitId = e.target.value;
+                    updated[index].unitName = e.target.value;
                     setIngredients(updated);
                   }}
+                  placeholder="Mértékegység (pl. g, gerezd)"
                   className="w-32 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
-                >
-                  <option value="">(Nincs)</option>
-                  {units.map((u: any) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.code})
-                    </option>
-                  ))}
-                </select>
+                />
 
                 {/* Hozzávaló neve */}
                 <input
@@ -239,7 +253,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
                     updated[index].name = e.target.value;
                     setIngredients(updated);
                   }}
-                  placeholder="Hozzávaló neve (pl. szárított vargánya)"
+                  placeholder="Hozzávaló neve (pl. fokhagyma)"
                   className="flex-1 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
                 />
 
