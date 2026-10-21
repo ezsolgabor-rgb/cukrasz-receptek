@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { SiteHeader } from "@/components/site-header";
 import { RecipeCard } from "@/components/recipe-card";
+import { listRecipeCards } from "@/lib/recipe-queries";
 
 export const dynamic = "force-dynamic";
 
@@ -13,23 +14,17 @@ export default async function CategoryDetailPage({
 }) {
   const { slug } = await params;
 
+  // Lekérjük magát a kategóriát
   const category = await prisma.category.findUnique({
     where: { slug },
-    include: {
-      recipes: {
-        include: {
-          category: true,
-          tags: true,
-          photos: true,
-          baseYieldUnit: true, // 🟢 Hozzáadva: a mértékegység reláció betöltése
-        },
-      },
-    },
   });
 
   if (!category) {
     notFound();
   }
+
+  // Biztonságosan lekérjük a kategóriához tartozó receptkártyákat a központi lekérdezővel
+  const recipes = await listRecipeCards({ categoryId: category.id });
 
   return (
     <div className="min-h-dvh bg-sage-50/50 dark:bg-gray-950">
@@ -59,7 +54,7 @@ export default async function CategoryDetailPage({
                 {category.name}
               </h1>
               <p className="mt-1 text-sm text-ink-500 dark:text-gray-400">
-                {category.recipes.length} recept ebben a kategóriában
+                {recipes.length} recept ebben a kategóriában
               </p>
             </div>
 
@@ -77,7 +72,7 @@ export default async function CategoryDetailPage({
 
         {/* Recept lista */}
         <div className="mt-8">
-          {category.recipes.length === 0 ? (
+          {recipes.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-sage-300 p-8 text-center dark:border-gray-800">
               <p className="text-sm text-ink-500 dark:text-gray-400">
                 Ebben a kategóriában még nincs recept. Vegyél fel egyet a + Új recept gombbal.
@@ -85,7 +80,7 @@ export default async function CategoryDetailPage({
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {category.recipes.map((recipe) => (
+              {recipes.map((recipe) => (
                 <RecipeCard key={recipe.id} recipe={recipe} />
               ))}
             </div>
