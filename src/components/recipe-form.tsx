@@ -10,7 +10,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
 
   // Recept alapadatok
   const [name, setName] = useState(initial?.name || "");
-  const [categoryId, setCategoryId] = useState(initial?.categoryId || categories[0]?.id || "");
+  const [categoryId, setCategoryId] = useState(initial?.categoryId || categories[0]?.id || null);
   const [baseYieldQty, setBaseYieldQty] = useState<number>(initial?.baseYieldQty || 4);
   const [baseYieldUnitId, setBaseYieldUnitId] = useState(initial?.baseYieldUnitId || units[0]?.id || "");
   
@@ -36,7 +36,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         const ingredientName = match[3];
 
         const foundUnit = units.find((u: any) => 
-          u.code.toLowerCase() === unitStr || u.name.toLowerCase() === unitStr
+          u.code?.toLowerCase() === unitStr || u.name?.toLowerCase() === unitStr
         );
 
         return { 
@@ -48,7 +48,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       } else {
         return { 
           qty: 1, 
-          unitId: null, 
+          unitId: units[0]?.id || null, 
           name: line, 
           raw: line 
         };
@@ -74,40 +74,41 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     const finalIngredients = parsedIngredients.length > 0 ? parsedIngredients : parseIngredients(rawIngredients);
     const finalSteps = parsedSteps.length > 0 ? parsedSteps : rawSteps.split("\n").map(l => l.trim()).filter(Boolean);
 
+    // Payload összeállítása pontosan a recipeInput Zod séma alapján (minden mező kötelezően szerepel)
     const payload = {
-      ...(initial?.id ? { id: initial.id } : {}), // Csak szerkesztéskor küldünk id-t
-      name,
-      categoryId,
-      baseYieldQty: Number(baseYieldQty),
-      baseYieldUnitId,
-      ingredients: finalIngredients.map((item) => ({
-        name: item.name,
-        quantity: item.qty * (baseYieldQty / (initialYieldQty || 1)),
-        unitId: item.unitId,
-        scalable: true,
-        note: null,
-        groupName: null,
-        componentRecipeId: null,
-      })),
-      steps: finalSteps.map((stepText) => ({
-        text: stepText,
-        durationMinutes: null,
-        temperatureC: null,
-        note: null,
-        photoFileName: null,
-      })),
-      tagNames: [],
+      id: initial?.id || null, // Új receptnél null, szerkesztésnél az ID string
+      name: name.trim(),
+      categoryId: categoryId || null,
       description: null,
+      baseYieldQty: Number(baseYieldQty),
+      baseYieldUnitId: baseYieldUnitId,
       yieldNote: null,
       prepMinutes: null,
       bakeMinutes: null,
       bakeTemperatureC: null,
-      difficulty: "medium",
+      difficulty: 3, // Zod szerint 1 és 5 közötti egész szám
       source: null,
       notes: null,
       isFavorite: false,
       usualYieldQty: null,
       usualYieldNote: null,
+      tagNames: [],
+      ingredients: finalIngredients.map((item) => ({
+        groupName: null,
+        name: item.name.trim(),
+        quantity: Number((item.qty * (baseYieldQty / (initialYieldQty || 1))).toFixed(2)),
+        unitId: item.unitId,
+        note: null,
+        scalable: true,
+        componentRecipeId: null,
+      })),
+      steps: finalSteps.map((stepText) => ({
+        text: stepText.trim(),
+        durationMinutes: null,
+        temperatureC: null,
+        note: null,
+        photoFileName: null,
+      })),
     };
 
     try {
@@ -115,7 +116,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
 
       if (!result.ok) {
         console.error("Mentési hibák:", result.errors);
-        alert("Mentési hiba: " + (result.errors?.[0] || "Ismeretlen hiba"));
+        alert("Mentési hiba: " + (result.errors?.join(", ") || "Ismeretlen hiba"));
         return;
       }
 
@@ -148,8 +149,8 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         <div>
           <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Kategória</label>
           <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+            value={categoryId || ""}
+            onChange={(e) => setCategoryId(e.target.value || null)}
             className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
           >
             {categories.map((cat: any) => (
