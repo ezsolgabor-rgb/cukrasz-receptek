@@ -8,7 +8,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
 
-  // Recept alapadatok
   const [name, setName] = useState(initial?.name || "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId || categories[0]?.id || null);
   const [baseYieldQty, setBaseYieldQty] = useState<number>(initial?.baseYieldQty || 4);
@@ -20,7 +19,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   const [difficulty, setDifficulty] = useState<number>(initial?.difficulty || 3);
   const [isFavorite, setIsFavorite] = useState<boolean>(initial?.isFavorite || false);
 
-  // Kép feltöltés kezelése
   const [photos, setPhotos] = useState<any[]>(() => {
     if (initial?.photos && initial.photos.length > 0) {
       return initial.photos.map((p: any) => ({
@@ -33,7 +31,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     return [];
   });
 
-  // Hozzávalók inicializálása
   const [ingredients, setIngredients] = useState<any[]>(() => {
     if (initial?.ingredients && initial.ingredients.length > 0) {
       return initial.ingredients.map((i: any) => {
@@ -53,7 +50,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     ];
   });
 
-  // Elkészítési lépések inicializálása
   const [steps, setSteps] = useState<any[]>(() => {
     if (initial?.steps && initial.steps.length > 0) {
       return initial.steps.map((s: any) => ({
@@ -82,7 +78,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     setSteps(steps.filter((_, i) => i !== index));
   }
 
-  // Fájlfeltöltés kezelő (Kép hozzáadása)
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -226,7 +221,6 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Recept alapadatok */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm">
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Recept címe *</label>
@@ -294,5 +288,196 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         </div>
       </div>
 
-      {/* Képfeltöltés szekció */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">📷 Fotók a receptről</h2>
+            <p className="text-xs text-ink-500 mt-1">Tölts fel képeket az elkészült ételről!</p>
+          </div>
+          <label className="cursor-pointer rounded-xl bg-forest-600 px-4 py-2 text-xs font-semibold text-white hover:bg-forest-700 transition">
+            + Kép feltöltése
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {photos.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+            {photos.map((photo, index) => (
+              <div key={index} className="relative group rounded-xl overflow-hidden border border-sage-200 dark:border-slate-700 p-2 bg-sage-50 dark:bg-slate-800">
+                <div className="text-xs truncate font-semibold text-ink-700 dark:text-slate-200 mb-1">
+                  {photo.fileName}
+                </div>
+                <div className="flex items-center gap-1 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCoverPhoto(index)}
+                    className={`text-xs px-2 py-1 rounded-md font-semibold ${
+                      photo.isCover
+                        ? "bg-forest-600 text-white"
+                        : "bg-sage-200 dark:bg-slate-700 text-ink-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {photo.isCover ? "★ Borító" : "Legyen borító"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(index)}
+                    className="ml-auto text-xs text-red-500 hover:text-red-700 font-bold px-2 py-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Hozzávalók</h2>
+            <p className="text-xs text-ink-500 mt-1">Írd be a mennyiséget, mértékegységet és a nevet:</p>
+          </div>
+          <button
+            type="button"
+            onClick={addIngredientRow}
+            className="rounded-xl bg-forest-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-forest-700 transition"
+          >
+            + Új hozzávaló
+          </button>
+        </div>
+
+        <datalist id="unit-options">
+          {units.map((u: any) => (
+            <option key={u.id} value={u.code || u.name} />
+          ))}
+          <option value="g" />
+          <option value="kg" />
+          <option value="ml" />
+          <option value="dl" />
+          <option value="l" />
+          <option value="ek" />
+          <option value="tk" />
+          <option value="gerezd" />
+          <option value="ág" />
+          <option value="db" />
+        </datalist>
+
+        <div className="space-y-3">
+          {ingredients.map((item, index) => {
+            return (
+              <div key={index} className="flex gap-2 items-center bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
+                <input
+                  type="number"
+                  step="any"
+                  value={item.qty}
+                  onChange={(e) => {
+                    const updated = [...ingredients];
+                    updated[index].qty = e.target.value;
+                    setIngredients(updated);
+                  }}
+                  placeholder="Mennyiség"
+                  className="w-24 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+                />
+
+                <input
+                  type="text"
+                  list="unit-options"
+                  value={item.unitName}
+                  onChange={(e) => {
+                    const updated = [...ingredients];
+                    updated[index].unitName = e.target.value;
+                    setIngredients(updated);
+                  }}
+                  placeholder="Mértékegység"
+                  className="w-32 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+                />
+
+                <input
+                  type="text"
+                  value={item.name}
+                  onChange={(e) => {
+                    const updated = [...ingredients];
+                    updated[index].name = e.target.value;
+                    setIngredients(updated);
+                  }}
+                  placeholder="Hozzávaló neve"
+                  className="flex-1 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => removeIngredientRow(index)}
+                  className="text-red-500 hover:text-red-700 px-2 py-1 font-bold"
+                  title="Sor törlése"
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Elkészítési lépések</h2>
+            <p className="text-xs text-ink-500 mt-1">Add meg a lépéseket soronként:</p>
+          </div>
+          <button
+            type="button"
+            onClick={addStepRow}
+            className="rounded-xl bg-forest-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-forest-700 transition"
+          >
+            + Új lépés
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {steps.map((step, index) => (
+            <div key={index} className="flex gap-2 items-start bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
+              <span className="text-sm font-bold text-ink-500 pt-2">{index + 1}.</span>
+              <textarea
+                rows={2}
+                value={step.text}
+                onChange={(e) => {
+                  const updated = [...steps];
+                  updated[index].text = e.target.value;
+                  setSteps(updated);
+                }}
+                placeholder="Írd ide a lépés leírását..."
+                className="flex-1 rounded-lg border border-sage-300 bg-white p-2.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+              />
+              <button
+                type="button"
+                onClick={() => removeStepRow(index)}
+                className="text-red-500 hover:text-red-700 px-2 py-1 font-bold pt-2"
+                title="Lépés törlése"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3">
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="rounded-xl bg-forest-700 px-6 py-3 text-base font-bold text-white shadow-md hover:bg-forest-800 transition disabled:opacity-50"
+        >
+          {isSaving ? "Mentés folyamatban..." : "Recept mentése a könyvbe 📖"}
+        </button>
+      </div>
+    </form>
+  );
+}
