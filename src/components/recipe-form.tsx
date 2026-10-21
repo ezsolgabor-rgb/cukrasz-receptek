@@ -4,13 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveRecipe } from "@/app/receptek/actions";
 
-function generateId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-}
-
 export function RecipeForm({ categories = [], units = [], initial, mode }: any) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -170,6 +163,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       });
 
     const payload = {
+      // Csak akkor küldünk id-t, ha ez egy meglévő recept szerkesztése! Új receptnél tiltott a generált id.
       ...(initial?.id ? { id: initial.id } : {}),
       name: name.trim(),
       categoryId: categoryId || null,
@@ -480,7 +474,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         <button
           type="submit"
           disabled={isSaving}
-          className="rounded-xl bg-forest-700 px-6 py-3 text-base font-bold text-white shadow-md hover:bg-forest-800 transition disabled:opacity-50"
+          className="rounded-xl bg-forest-700 px-6 py-3 text-base font-bold text-white shadow-md hover:bg-hover transition disabled:opacity-50"
         >
           {isSaving ? "Mentés folyamatban..." : "Recept mentése a könyvbe 📖"}
         </button>
