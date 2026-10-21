@@ -14,120 +14,59 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   const [baseYieldQty, setBaseYieldQty] = useState<number>(initial?.baseYieldQty || 4);
   const [baseYieldUnitId, setBaseYieldUnitId] = useState(initial?.baseYieldUnitId || units[0]?.id || "");
   
-  // Nyers bemásolt szövegek
-  const [rawIngredients, setRawIngredients] = useState("");
-  const [rawSteps, setRawSteps] = useState("");
+  // Hozzávalók listája strukturált formában (táblázat / sorok)
+  const [ingredients, setIngredients] = useState<any[]>(
+    initial?.ingredients?.length > 0
+      ? initial.ingredients.map((i: any) => ({
+          qty: i.quantity || 1,
+          unitId: i.unitId || units[0]?.id || "",
+          name: i.name || "",
+        }))
+      : [
+          { qty: 1, unitId: units[0]?.id || "", name: "" },
+          { qty: 1, unitId: units[0]?.id || "", name: "" },
+          { qty: 1, unitId: units[0]?.id || "", name: "" },
+        ]
+  );
 
-  // Felismert elemek
-  const [parsedIngredients, setParsedIngredients] = useState<any[]>([]);
-  const [parsedSteps, setParsedSteps] = useState<string[]>([]);
+  // Elkészítési lépések (soronként)
+  const [steps, setSteps] = useState<string[]>(
+    initial?.steps?.length > 0 ? initial.steps.map((s: any) => s.text) : [""]
+  );
 
-  // Kezdeti viszonyítási alap a skálázáshoz
   const initialYieldQty = initial?.baseYieldQty || 4;
 
-  // Intelligens többsoros és egysoros hozzávaló értelmező
-  function parseIngredients(text: string) {
-    const rawLines = text.split("\n").map(l => l.trim()).filter(Boolean);
-    if (rawLines.length === 0) return [];
-
-    // 1. Összevonjuk a külön sorba került mennyiségeket és neveket
-    const mergedBlocks: string[] = [];
-    let currentBlock = "";
-
-    for (let i = 0; i < rawLines.length; i++) {
-      const line = rawLines[i];
-      // Ha a sor kizárólag számmal vagy szám + mértékegységgel kezdődik/áll (pl. "15 g", "100 ml", "1 fej")
-      const isNumberOrQtyOnly = /^[\d.,\/]+\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?$/.test(line);
-
-      if (isNumberOrQtyOnly && currentBlock) {
-        mergedBlocks.push(currentBlock);
-        currentBlock = line;
-      } else if (isNumberOrQtyOnly && !currentBlock) {
-        currentBlock = line;
-      } else {
-        if (currentBlock) {
-          currentBlock += " " + line;
-        } else {
-          currentBlock = line;
-        }
-      }
-    }
-    if (currentBlock) mergedBlocks.push(currentBlock);
-
-    // 2. Blokkok strukturálása
-    return mergedBlocks.map((block) => {
-      // Regex minta: [Mennyiség] [Lehetséges Mértékegység] [Név / Kiegészítés]
-      const match = block.match(/^([\d.,\/]+)\s*([a-zA-ZáéíóöőúűüÁÉÍÓÖŐÚŰÜ.]+)?\s*(.*)$/);
-
-      if (match && match[1]) {
-        const qty = parseFloat(match[1].replace(",", ".")) || 1;
-        const possibleUnit = (match[2] || "").trim().toLowerCase();
-        let restName = (match[3] || "").trim();
-
-        // Keresünk egyező mértékegységet az adatbázis egységek között
-        const foundUnit = units.find((u: any) => 
-          u.code?.toLowerCase() === possibleUnit || 
-          u.name?.toLowerCase() === possibleUnit
-        );
-
-        if (foundUnit) {
-          return {
-            qty,
-            unitId: foundUnit.id,
-            unitName: foundUnit.code || foundUnit.name,
-            name: restName || possibleUnit,
-            raw: block,
-          };
-        } else {
-          // Ha nem találtunk pontos DB mértékegységet (pl. "fej", "gerezd"), 
-          // NEM erőltetjük rá a grammot (g), hanem a nevében tartjuk meg!
-          const fullName = possibleUnit ? `${possibleUnit} ${restName}`.trim() : restName;
-          return {
-            qty,
-            unitId: null, // null, így nem lesz automatikusan "g"
-            unitName: "",
-            name: fullName || block,
-            raw: block,
-          };
-        }
-      } else {
-        // Ha nincs szám az elején (pl. "só, bors ízlés szerint")
-        return { 
-          qty: 1, 
-          unitId: null, 
-          unitName: "",
-          name: block, 
-          raw: block 
-        };
-      }
-    });
+  // Hozzávaló sor hozzáadása
+  function addIngredientRow() {
+    setIngredients([...ingredients, { qty: 1, unitId: units[0]?.id || "", name: "" }]);
   }
 
-  function handleIngredientsChange(text: string) {
-    setRawIngredients(text);
-    setParsedIngredients(parseIngredients(text));
+  // Hozzávaló sor törlése
+  function removeIngredientRow(index: number) {
+    setIngredients(ingredients.filter((_, i) => i !== index));
   }
 
-  function handleStepsChange(text: string) {
-    setRawSteps(text);
-    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-    setParsedSteps(lines);
+  // Lépés sor hozzáadása
+  function addStepRow() {
+    setSteps([...steps, ""]);
+  }
+
+  // Lépés sor törlése
+  function removeStepRow(index: number) {
+    setSteps(steps.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSaving(true);
 
-    const finalIngredients = parsedIngredients.length > 0 ? parsedIngredients : parseIngredients(rawIngredients);
-    const finalSteps = parsedSteps.length > 0 ? parsedSteps : rawSteps.split("\n").map(l => l.trim()).filter(Boolean);
-
     const payload = {
-      id: initial?.id || null,
+      ...(initial?.id ? { id: initial.id } : {}),
       name: name.trim(),
       categoryId: categoryId || null,
       description: null,
       baseYieldQty: Number(baseYieldQty),
-      baseYieldUnitId: baseYieldUnitId,
+      baseYieldUnitId,
       yieldNote: null,
       prepMinutes: null,
       bakeMinutes: null,
@@ -139,22 +78,26 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       usualYieldQty: null,
       usualYieldNote: null,
       tagNames: [],
-      ingredients: finalIngredients.map((item) => ({
-        groupName: null,
-        name: item.name.trim(),
-        quantity: Number((item.qty * (baseYieldQty / (initialYieldQty || 1))).toFixed(2)),
-        unitId: item.unitId, // Csak akkor kap ID-t, ha tényleg egyezik a DB mértékegységgel, különben null
-        note: null,
-        scalable: true,
-        componentRecipeId: null,
-      })),
-      steps: finalSteps.map((stepText) => ({
-        text: stepText.trim(),
-        durationMinutes: null,
-        temperatureC: null,
-        note: null,
-        photoFileName: null,
-      })),
+      ingredients: ingredients
+        .filter((i) => i.name.trim() !== "")
+        .map((item) => ({
+          groupName: null,
+          name: item.name.trim(),
+          quantity: Number((Number(item.qty) * (baseYieldQty / (initialYieldQty || 1))).toFixed(2)),
+          unitId: item.unitId || null,
+          note: null,
+          scalable: true,
+          componentRecipeId: null,
+        })),
+      steps: steps
+        .filter((s) => s.trim() !== "")
+        .map((stepText) => ({
+          text: stepText.trim(),
+          durationMinutes: null,
+          temperatureC: null,
+          note: null,
+          photoFileName: null,
+        })),
     };
 
     try {
@@ -187,7 +130,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Pl. Házi krémes"
+            placeholder="Pl. Vargányás rizottó"
             className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
           />
         </div>
@@ -219,7 +162,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Mértékegység (pl. adag, szelet)</label>
+          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Adag mértékegysége (pl. adag, szelet)</label>
           <select
             value={baseYieldUnitId}
             onChange={(e) => setBaseYieldUnitId(e.target.value)}
@@ -234,63 +177,134 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         </div>
       </div>
 
-      {/* 1. Szövegdoboz: Hozzávalók */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm">
-        <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Hozzávalók bemásolása</h2>
-        <p className="text-xs text-ink-500 mt-1">
-          Másold be ide a hozzávalókat. Az egymás alatt lévő mennyiségeket és megnevezéseket a program automatikusan összevonja!
-        </p>
-        
-        <textarea
-          rows={10}
-          value={rawIngredients}
-          onChange={(e) => handleIngredientsChange(e.target.value)}
-          placeholder={"15 g\nszárított vargánya gomba\n\n100 ml\nforró víz\n\n1 fej\nsalottahagyma\n(kisebb)\n\n1 gerezd\nfokhagyma"}
-          className="mt-3 w-full rounded-xl border border-sage-300 bg-white p-4 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 font-mono"
-        />
-
-        {parsedIngredients.length > 0 && (
-          <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4">
-            <h3 className="text-sm font-semibold text-ink-800 dark:text-slate-200">
-              Felismert hozzávalók előnézete ({parsedIngredients.length} db):
-            </h3>
-            <ul className="mt-2 space-y-1 text-sm text-ink-600 dark:text-slate-400 font-mono">
-              {parsedIngredients.map((item, idx) => {
-                const scaledQty = Number((item.qty * (baseYieldQty / (initialYieldQty || 1))).toFixed(2));
-                return (
-                  <li key={idx} className="bg-sage-50 dark:bg-slate-800 p-2 rounded-lg flex justify-between">
-                    <span>{item.name}</span>
-                    <span className="font-bold text-forest-700 dark:text-emerald-400">
-                      {scaledQty} {item.unitName}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+      {/* Hozzávalók Táblázat / Sorok */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Hozzávalók</h2>
+            <p className="text-xs text-ink-500 mt-1">Add meg a hozzávalókat soronként, pontos mennyiséggel és mértékegységgel:</p>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={addIngredientRow}
+            className="rounded-xl bg-forest-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-forest-700 transition"
+          >
+            + Új hozzávaló
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {ingredients.map((item, index) => {
+            const scaledQty = Number((Number(item.qty) * (baseYieldQty / (initialYieldQty || 1))).toFixed(2));
+            return (
+              <div key={index} className="flex gap-2 items-center bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
+                {/* Mennyiség */}
+                <input
+                  type="number"
+                  step="any"
+                  value={item.qty}
+                  onChange={(e) => {
+                    const updated = [...ingredients];
+                    updated[index].qty = e.target.value;
+                    setIngredients(updated);
+                  }}
+                  placeholder="Mennyiség"
+                  className="w-24 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+                />
+
+                {/* Mértékegység */}
+                <select
+                  value={item.unitId}
+                  onChange={(e) => {
+                    const updated = [...ingredients];
+                    updated[index].unitId = e.target.value;
+                    setIngredients(updated);
+                  }}
+                  className="w-32 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+                >
+                  <option value="">(Nincs)</option>
+                  {units.map((u: any) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.code})
+                    </option>
+                  ))}
+                </select>
+
+                {/* Hozzávaló neve */}
+                <input
+                  type="text"
+                  value={item.name}
+                  onChange={(e) => {
+                    const updated = [...ingredients];
+                    updated[index].name = e.target.value;
+                    setIngredients(updated);
+                  }}
+                  placeholder="Hozzávaló neve (pl. szárított vargánya)"
+                  className="flex-1 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+                />
+
+                {/* Élő skálázott érték jelzése */}
+                <span className="text-xs text-forest-700 dark:text-emerald-400 font-mono w-20 text-right hidden sm:inline">
+                  (= {scaledQty})
+                </span>
+
+                {/* Törlés gomb */}
+                <button
+                  type="button"
+                  onClick={() => removeIngredientRow(index)}
+                  className="text-red-500 hover:text-red-700 px-2 py-1 font-bold"
+                  title="Sor törlése"
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* 2. Szövegdoboz: Elkészítési lépések */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm">
-        <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Elkészítési lépések bemásolása</h2>
-        <p className="text-xs text-ink-500 mt-1">Másold be ide a recept leírását vagy lépéseit:</p>
-        
-        <textarea
-          rows={6}
-          value={rawSteps}
-          onChange={(e) => handleStepsChange(e.target.value)}
-          placeholder={"1. A vargányát forró vízbe áztatjuk.\n2. A salottahagymát finomra vágjuk..."}
-          className="mt-3 w-full rounded-xl border border-sage-300 bg-white p-4 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
-        />
-
-        {parsedSteps.length > 0 && (
-          <div className="mt-4 border-t border-sage-200 dark:border-slate-800 pt-4">
-            <h3 className="text-sm font-semibold text-ink-800 dark:text-slate-200">
-              Felismert lépések száma: {parsedSteps.length} db
-            </h3>
+      {/* Elkészítési lépések */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Elkészítési lépések</h2>
+            <p className="text-xs text-ink-500 mt-1">Add meg a recept lépéseit soronként:</p>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={addStepRow}
+            className="rounded-xl bg-forest-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-forest-700 transition"
+          >
+            + Új lépés
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {steps.map((stepText, index) => (
+            <div key={index} className="flex gap-2 items-start bg-sage-50 dark:bg-slate-800 p-3 rounded-xl">
+              <span className="text-sm font-bold text-ink-500 pt-2">{index + 1}.</span>
+              <textarea
+                rows={2}
+                value={stepText}
+                onChange={(e) => {
+                  const updated = [...steps];
+                  updated[index] = e.target.value;
+                  setSteps(updated);
+                }}
+                placeholder="Írd ide a lépés leírását..."
+                className="flex-1 rounded-lg border border-sage-300 bg-white p-2.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+              />
+              <button
+                type="button"
+                onClick={() => removeStepRow(index)}
+                className="text-red-500 hover:text-red-700 px-2 py-1 font-bold pt-2"
+                title="Lépés törlése"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Mentés gomb */}
