@@ -189,4 +189,110 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
       steps: steps
         .filter((s) => s.text && s.text.trim() !== "")
         .map((s, index) => ({
-          ...(s.id ? { id
+          ...(s.id ? { id: s.id } : {}),
+          stepIndex: index + 1,
+          text: s.text.trim(),
+          durationMinutes: null,
+          temperatureC: null,
+          note: null,
+          photoFileName: null,
+        })),
+      photos: photos.map((p) => ({
+        ...(p.id ? { id: p.id } : {}),
+        fileName: p.fileName,
+        caption: p.caption || null,
+        isCover: Boolean(p.isCover),
+      })),
+    };
+
+    try {
+      const result = await saveRecipe(payload);
+
+      if (!result?.ok) {
+        console.error("Mentési hibák:", result?.errors);
+        alert("Mentési hiba: " + (result?.errors?.join(", ") || "A megadott adatok érvénytelenek."));
+        return;
+      }
+
+      router.push(`/receptek/${result.slug}`);
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      alert("Hiba történt a recept mentése során. Kérlek próbáld újra!");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Recept alapadatok */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm">
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Recept címe *</label>
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Pl. Vargányás rizottó"
+            className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Kategória</label>
+          <select
+            value={categoryId || ""}
+            onChange={(e) => setCategoryId(e.target.value || null)}
+            className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+          >
+            {categories.map((cat: any) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Alapadag</label>
+            <input
+              type="number"
+              step="any"
+              value={baseYieldQty}
+              onChange={(e) => setBaseYieldQty(parseFloat(e.target.value) || 1)}
+              className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Mértékegység</label>
+            <select
+              value={baseYieldUnitId}
+              onChange={(e) => setBaseYieldUnitId(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-sage-300 bg-white px-4 py-2.5 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+            >
+              {units.map((u: any) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.code})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-ink-700 dark:text-slate-300">Rövid leírás / megjegyzés</label>
+          <textarea
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Egy rövid összefoglaló a receptről..."
+            className="mt-1 w-full rounded-xl border border-sage-300 bg-white p-3 text-sm text-ink-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+          />
+        </div>
+      </div>
+
+      {/* Képfeltöltés szekció */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-sage-200 dark:border-slate-800 shadow-sm space-y-4">
