@@ -139,3 +139,34 @@ export default async function HomePage() {
                       href={`/receptek/${recipe.slug}`}
                       className="card block p-4 transition-shadow hover:shadow-lift bg-white dark:bg-slate-850 dark:border dark:border-slate-700/50"
                     >
+                      <p className="font-display text-lg leading-snug text-ink-900">
+                        {recipe.name}
+                      </p>
+                      <p className="mt-1 text-xs text-ink-400">
+                        {formatNumber(recipe.baseYieldQty, 2)}{" "}
+                        {recipe.baseYieldUnit?.code || ""}
+                        {recipe.stepCount > 0 && ` · ${recipe.stepCount} lépés`}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* --- Legutóbb módosított -------------------------------------- */}
+        {recent.length > 0 && (
+          <section className="mt-12">
+            <h2 className="font-display text-2xl text-ink-900">
+              Legutóbb módosított
+            </h2>
+            <div className="mt-4">
+              <RecipeGrid recipes={recent} />
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
