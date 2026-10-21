@@ -14,30 +14,37 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
   const [baseYieldQty, setBaseYieldQty] = useState<number>(initial?.baseYieldQty || 4);
   const [baseYieldUnitId, setBaseYieldUnitId] = useState(initial?.baseYieldUnitId || units[0]?.id || "");
   
-  // Hozzávalók listája (ahol a mértékegység már szabadon írható vagy választható)
-  const [ingredients, setIngredients] = useState<any[]>(
-    initial?.ingredients?.length > 0
-      ? initial.ingredients.map((i: any) => ({
+  // Hozzávalók inicializálása szerkesztés és új recept esetén is
+  const [ingredients, setIngredients] = useState<any[]>(() => {
+    if (initial?.ingredients && initial.ingredients.length > 0) {
+      return initial.ingredients.map((i: any) => {
+        const foundUnit = units.find((u: any) => u.id === i.unitId);
+        return {
           qty: i.quantity || 1,
-          unitName: units.find((u: any) => u.id === i.unitId)?.code || units[0]?.code || "g",
+          unitName: foundUnit ? (foundUnit.code || foundUnit.name) : "g",
           name: i.name || "",
-        }))
-      : [
-          { qty: 1, unitName: "g", name: "" },
-          { qty: 1, unitName: "g", name: "" },
-          { qty: 1, unitName: "g", name: "" },
-        ]
-  );
+        };
+      });
+    }
+    return [
+      { qty: 1, unitName: "g", name: "" },
+      { qty: 1, unitName: "g", name: "" },
+      { qty: 1, unitName: "g", name: "" },
+    ];
+  });
 
-  // Elkészítési lépések
-  const [steps, setSteps] = useState<string[]>(
-    initial?.steps?.length > 0 ? initial.steps.map((s: any) => s.text) : [""]
-  );
+  // Elkészítési lépések inicializálása
+  const [steps, setSteps] = useState<string[]>(() => {
+    if (initial?.steps && initial.steps.length > 0) {
+      return initial.steps.map((s: any) => s.text);
+    }
+    return [""];
+  });
 
   const initialYieldQty = initial?.baseYieldQty || 4;
 
   function addIngredientRow() {
-    setIngredients([...ingredients, { qty: 1, unitName: units[0]?.code || "g", name: "" }]);
+    setIngredients([...ingredients, { qty: 1, unitName: "g", name: "" }]);
   }
 
   function removeIngredientRow(index: number) {
@@ -56,20 +63,22 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
     e.preventDefault();
     setIsSaving(true);
 
-    // Itt leképezzük a szabadon beírt unitName-et a létező unitId-ra, 
-    // vagy ha egyedi (pl. gerezd, ág), akkor a nevébe/megjegyzésbe ágyazzuk, hogy a Zod séma ne dobjon hibát.
     const mappedIngredients = ingredients
       .filter((i) => i.name.trim() !== "")
       .map((item) => {
         const scaledQty = Number((Number(item.qty) * (baseYieldQty / (initialYieldQty || 1))).toFixed(2));
-        const matchedUnit = units.find((u: any) => u.code.toLowerCase() === item.unitName.toLowerCase() || u.name.toLowerCase() === item.unitName.toLowerCase());
+        const matchedUnit = units.find(
+          (u: any) =>
+            u.code?.toLowerCase() === item.unitName.trim().toLowerCase() ||
+            u.name?.toLowerCase() === item.unitName.trim().toLowerCase()
+        );
 
         return {
           groupName: null,
-          name: matchedUnit ? item.name.trim() : `${item.unitName} ${item.name}`.trim(), // Ha egyedi (pl. gerezd), bekerül a névbe
+          name: item.name.trim(),
           quantity: scaledQty,
-          unitId: matchedUnit ? matchedUnit.id : (units[0]?.id || null), // Ha egyedi, az alapértelmezett unitId-t kapja, de a szöveg megmarad a névben
-          note: null,
+          unitId: matchedUnit ? matchedUnit.id : (units[0]?.id || null),
+          note: !matchedUnit && item.unitName.trim() ? item.unitName.trim() : null,
           scalable: true,
           componentRecipeId: null,
         };
@@ -187,7 +196,7 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
         <div className="flex justify-between items-center">
           <div>
             <h2 className="font-display text-xl text-ink-900 dark:text-slate-100">Hozzávalók</h2>
-            <p className="text-xs text-ink-500 mt-1">Válassz mértékegységet a listából, vagy írd be szabadon (pl. gerezd, ág):</p>
+            <p className="text-xs text-ink-500 mt-1">Írd be szabadon vagy válaszd ki a mértékegységet (pl. g, ml, gerezd, ág, ek, tk):</p>
           </div>
           <button
             type="button"
@@ -198,17 +207,24 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
           </button>
         </div>
 
-        {/* Datalist a választható mértékegységekhez */}
-        <datalist id="available-units">
+        {/* Gyakori mértékegység ajánlások listája */}
+        <datalist id="unit-options">
           {units.map((u: any) => (
-            <option key={u.id} value={u.code} />
+            <option key={u.id} value={u.code || u.name} />
           ))}
-          <option value="gerezd" />
-          <option value="ág" />
-          <option value="ízlés szerint" />
-          <option value="fej" />
+          <option value="g" />
+          <option value="kg" />
+          <option value="ml" />
+          <option value="dl" />
+          <option value="l" />
           <option value="ek" />
           <option value="tk" />
+          <option value="gerezd" />
+          <option value="ág" />
+          <option value="fej" />
+          <option value="db" />
+          <option value="ízlés szerint" />
+          <option value="csipet" />
         </datalist>
 
         <div className="space-y-3">
@@ -230,17 +246,17 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
                   className="w-24 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
                 />
 
-                {/* Szabadon írható / választható mértékegység mező */}
+                {/* Szabadon szerkeszthető szöveges mértékegység mező */}
                 <input
                   type="text"
-                  list="available-units"
+                  list="unit-options"
                   value={item.unitName}
                   onChange={(e) => {
                     const updated = [...ingredients];
                     updated[index].unitName = e.target.value;
                     setIngredients(updated);
                   }}
-                  placeholder="Mértékegység (pl. g, gerezd)"
+                  placeholder="Mértékegység"
                   className="w-32 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
                 />
 
@@ -253,11 +269,11 @@ export function RecipeForm({ categories = [], units = [], initial, mode }: any) 
                     updated[index].name = e.target.value;
                     setIngredients(updated);
                   }}
-                  placeholder="Hozzávaló neve (pl. fokhagyma)"
+                  placeholder="Hozzávaló neve"
                   className="flex-1 rounded-lg border border-sage-300 bg-white px-3 py-1.5 text-sm text-ink-900 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
                 />
 
-                {/* Élő skálázott érték jelzése */}
+                {/* Élő skálázott érték */}
                 <span className="text-xs text-forest-700 dark:text-emerald-400 font-mono w-20 text-right hidden sm:inline">
                   (= {scaledQty})
                 </span>
